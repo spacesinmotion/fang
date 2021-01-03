@@ -3,13 +3,20 @@ local function factorial(number)
   return factorial(number - 1) * number
 end
 
-local t = TestSuite('factorial_function')
+local suite = TestSuite('factorial_tests')
 
-function t.factorial_test()
-  CHECK(factorial(1) == 1)
-  CHECK(factorial(2) == 2)
-  CHECK(factorial(3) == 6)
-  CHECK(factorial(10) == 3628800)
-end
+function suite.one() CHECK(factorial(1) == 1) end
 
-return t
+function suite.two() CHECK(factorial(2) == 2) end
+
+function suite.three() CHECK(factorial(3) == 6) end
+
+suite.sub = TestSuite('complex')
+
+function suite.sub.ten() CHECK(factorial(10) == 3628800) end
+
+suite.broken = TestSuite('broken')
+
+function suite.broken.two() CHECK(factorial(2) == 42) end
+
+return suite

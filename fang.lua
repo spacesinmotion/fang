@@ -156,7 +156,7 @@ local function get_suites(path)
   local root = {
     type = 'suite',
     id = 'root',
-    label = 'LuaTesting',
+    label = 'FangLuaTest',
     children = {},
   }
   each_lua_test_file(path, function(filepath)
