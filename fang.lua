@@ -123,25 +123,58 @@ function ASSERT_NE(a, b)
   add_assert('expect not ' .. (a or '(nil)'))
 end
 
+local function json_object(o, keys)
+  io.write('{')
+  for i, k in ipairs(keys) do
+    if i > 1 then io.write(',') end
+    io.write('"' .. k .. '":')
+    if type(o[k]) == 'string' then io.write('"' .. o[k] .. '"') end
+    if type(o[k]) == 'number' then io.write(tostring(o[k])) end
+    if type(o[k]) == 'table' then
+      io.write('[')
+      local sub = o[k]
+      for i = 1, #sub do
+        if i > 1 then io.write(',') end
+        sub[i]:list_suite_json()
+      end
+      io.write(']')
+    end
+  end
+  io.write('}')
+end
+
+local Suite = {type = 'suite'}
+Suite.__index = Suite
+function Suite:list_suite_json()
+  json_object(self, {'type', 'id', 'label', 'children'})
+end
+
+local Test = {type = 'test'}
+Test.__index = Test
+function Test:list_suite_json()
+  json_object(self, {'type', 'id', 'label', 'line', 'file'})
+end
+
 local function parse_suite(suite, filepath, postfix)
   local children = {}
   for key, v in pairs(suite) do
     if key ~= '__meta' and type(v) == 'function' then
       local f_info = debug.getinfo(v)
-      children[#children + 1] = {
-        type = 'test',
-        id = key .. '.' .. suite.__meta.name .. '.' .. postfix,
-        -- tooltip = key .. '.' .. suite.__meta.name .. '.' .. postfix,
-        file = filepath,
-        line = f_info.linedefined - 1,
-        label = key,
-      }
+      children[#children + 1] = setmetatable(
+                                    {
+            type = 'test',
+            id = key .. '.' .. suite.__meta.name .. '.' .. postfix,
+            -- tooltip = key .. '.' .. suite.__meta.name .. '.' .. postfix,
+            file = filepath,
+            line = f_info.linedefined - 1,
+            label = key,
+          }, Test)
     elseif key ~= '__meta' and type(v) == 'table' and v.__meta then
       children[#children + 1] = parse_suite(v, filepath,
                                             suite.__meta.name .. '.' .. postfix)
     end
   end
-  return {
+  return setmetatable({
     type = 'suite',
     id = suite.__meta.name .. '.' .. postfix,
     -- tooltip = suite.__meta.name .. '.' .. postfix,
@@ -149,16 +182,16 @@ local function parse_suite(suite, filepath, postfix)
     line = suite.__meta.line - 1,
     label = suite.__meta.name,
     children = children,
-  }
+  }, Suite)
 end
 
 local function get_suites(path)
-  local root = {
+  local root = setmetatable({
     type = 'suite',
     id = 'root',
     label = 'FangLuaTest',
     children = {},
-  }
+  }, Suite)
   each_lua_test_file(path, function(filepath)
     local ok, suite = pcall(dofile, filepath)
     if ok then
@@ -222,7 +255,7 @@ end
 
 package.path = arg[#arg] .. '/?.lua;' .. package.path
 if arg[1] == 'suite' then
-  json_out(get_suites(arg[2]))
+  get_suites(arg[2]):list_suite_json()
 elseif arg[1] == 'run' then
   if #arg == 2 then
     run(arg[#arg], {root = true})

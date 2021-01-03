@@ -50,7 +50,9 @@ local function count_suites_and_cases(suites)
 end
 
 print('Checking a list of all suites...')
-local suites = json.decode(exec_fang({'suite', 'tests/'}))
+local suites_json = exec_fang({'suite', 'tests/'})
+-- print(suites_json)
+local suites = json.decode(suites_json)
 tests_suites(suites)
 
 local num_suites, num_cases = count_suites_and_cases(suites)
