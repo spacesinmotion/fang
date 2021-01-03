@@ -228,10 +228,7 @@ elseif arg[1] == 'run' then
     run(arg[#arg], {root = true})
   else
     local as_set = {}
-    for i = 2, #arg - 1 do
-      print(arg[i])
-      as_set[arg[i]] = true
-    end
+    for i = 2, #arg - 1 do as_set[arg[i]] = true end
     run(arg[#arg], as_set)
   end
 end
