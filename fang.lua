@@ -1,7 +1,3 @@
-local json = require 'json'
-
-local function json_out(t) print(json.encode(t)) end
-
 local function ends_with(string, ending)
   return ending == '' or string:sub(-#ending) == ending
 end
@@ -129,7 +125,9 @@ local function json_object(o, ...)
     if o[k] then
       if i > 1 then io.write(',') end
       io.write('"' .. k .. '":')
-      if type(o[k]) == 'string' then io.write('"' .. o[k] .. '"') end
+      if type(o[k]) == 'string' then
+        io.write('"' .. o[k]:gsub('\n', '\\n') .. '"')
+      end
       if type(o[k]) == 'number' then io.write(tostring(o[k])) end
       if type(o[k]) == 'table' then
         io.write('[')
@@ -207,32 +205,50 @@ local function run_test_call(fun)
   fun()
 end
 
+local RunState = {}
+RunState.__index = RunState
+function RunState.test(id, state)
+  return setmetatable({type = 'test', test = id, state = state}, RunState)
+end
+function RunState.suite(id, state)
+  return setmetatable({type = 'suite', suite = id, state = state}, RunState)
+end
+
+function RunState:set_errors(name, errors)
+  self.decorations = errors
+  if #errors == 0 then return end
+  self.message = name .. ':\n  '
+  for _, v in ipairs(errors) do
+    v.list_suite_json = function(self)
+      return json_object(self, {'line', 'message'})
+    end
+    self.message = self.message .. v.line + 1 .. ': ' .. v.message .. '\n  '
+  end
+  return self
+end
+
+function RunState:json_out()
+  print(
+      json_object(self, {'type', self.type, 'state', 'message', 'decorations'}))
+end
+
 local function test_runner(fun, name, id)
-  json_out {type = 'test', test = id, state = 'running'}
+  RunState.test(id, 'running'):json_out()
 
   current_errors = {}
   local ok, err = pcall(run_test_call, fun)
 
   if not ok and err ~= ASSERT then push_error(0, tostring(err)) end
 
-  local message = name .. ':\n  '
-  for _, v in ipairs(current_errors) do
-    message = message .. v.line + 1 .. ': ' .. v.message .. '\n  '
-  end
-
-  json_out {
-    type = 'test',
-    test = id,
-    state = #current_errors == 0 and 'passed' or 'failed',
-    message = #current_errors == 0 and nil or message,
-    decorations = current_errors,
-  }
+  local rs = RunState.test(id, #current_errors == 0 and 'passed' or 'failed')
+  rs:set_errors(name, current_errors)
+  rs:json_out()
 end
 
 local function run_recursive(suite, selection, postfix)
   postfix = suite.__meta.name .. '.' .. postfix
   local run_all = selection.root or selection[postfix]
-  if run_all then json_out {type = 'suite', suite = postfix, state = 'running'} end
+  if run_all then RunState.suite(postfix, 'running'):json_out() end
   for k, v in pairs(suite) do
     if type(v) == 'function' and (run_all or selection[k .. '.' .. postfix]) then
       test_runner(v, k, k .. '.' .. postfix)
@@ -242,9 +258,7 @@ local function run_recursive(suite, selection, postfix)
                         {root = true} or selection, postfix)
     end
   end
-  if run_all then
-    json_out {type = 'suite', suite = postfix, state = 'completed'}
-  end
+  if run_all then RunState.suite(postfix, 'completed') end
 end
 
 local function run(path, selection)

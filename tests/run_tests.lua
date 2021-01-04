@@ -66,6 +66,7 @@ local unique_running_set = {}
 local running = {suite = {}, test = {}}
 local failed_tests = {}
 for s in exec_fang({'run', 'tests/'}):gmatch('[^\r\n]+') do
+  --print(s)
   local event = json.decode(s)
   assert(event.type and (event.type == 'suite' or event.type == 'test'))
   assert(event.state and type(event.state) == 'string')
