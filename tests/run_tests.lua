@@ -45,7 +45,8 @@ local function json_decode(it)
       table.insert(st, e)
       e = it()
     until e == nil or e == '"'
-    return table.concat(st)
+    local s = table.concat(st):gsub('\\n', '\n')
+    return s
   else
     local n = ''
     repeat

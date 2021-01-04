@@ -132,9 +132,9 @@ local function json_object(o, ...)
       if type(o[k]) == 'table' then
         io.write('[')
         local sub = o[k]
-        for i = 1, #sub do
-          if i > 1 then io.write(',') end
-          sub[i]:list_suite_json()
+        for j = 1, #sub do
+          if j > 1 then io.write(',') end
+          sub[j]:list_suite_json()
         end
         io.write(']')
       end
