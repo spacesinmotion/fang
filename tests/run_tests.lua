@@ -1,4 +1,69 @@
-local json = require 'json'
+local function json_decode(it)
+  local function skip_whitespace(it)
+    local x
+    repeat x = it() until x == nil or x:match('%s') == nil
+    return x
+  end
+  local it = type(it) == 'string' and it:gmatch('.') or it
+
+  local e = skip_whitespace(it)
+  if not e or e == '}' or e == ']' then
+    return nil
+  elseif e == '{' then
+    local o = {}
+    while true do
+      local k = json_decode(it)
+      if not k then return o end
+      if type(k) ~= 'string' then
+        error('json: expect string key for object')
+      end
+      if skip_whitespace(it) ~= ':' then
+        error('json: missing ":" in object')
+      end
+      local x_sep = nil
+      o[k], x_sep = json_decode(it)
+      local sep = x_sep and x_sep or skip_whitespace(it)
+      if sep == '}' then return o end
+      if sep ~= ',' then error('json: missing "," or "}" closing object') end
+    end
+
+  elseif e == '[' then
+    local a = {}
+    while true do
+      local x_sep = nil
+      local v, x_sep = json_decode(it)
+      if not v then return a end
+      a[#a + 1] = v
+      local sep = x_sep and x_sep or skip_whitespace(it)
+      if sep == ']' then return a end
+      if sep ~= ',' then error('json: missing "," or "]" closing array') end
+    end
+  elseif e == '"' then
+    local st = {}
+    e = it()
+    repeat
+      table.insert(st, e)
+      e = it()
+    until e == nil or e == '"'
+    return table.concat(st)
+  else
+    local n = ''
+    repeat
+      n = n .. e
+      e = it()
+    until e == nil or e:match('%S') == nil or e == ',' or e == '}' or e == ']'
+    if n == 'true' then
+      return true, e
+    elseif n == 'false' then
+      return false, e
+    elseif n == 'null' then
+      return nil, e
+    end
+    local ln = tonumber(n)
+    if not ln then error('json: unknown keyword: "' .. n .. '"') end
+    return ln, e
+  end
+end
 
 local function exec(cmd)
   local f = assert(io.popen(cmd, 'r'))
@@ -52,7 +117,7 @@ end
 print('Checking a list of all suites...')
 local suites_json = exec_fang({'suite', 'tests/'})
 -- print(suites_json)
-local suites = json.decode(suites_json)
+local suites = json_decode(suites_json)
 tests_suites(suites)
 
 local num_suites, num_cases = count_suites_and_cases(suites)
@@ -66,8 +131,8 @@ local unique_running_set = {}
 local running = {suite = {}, test = {}}
 local failed_tests = {}
 for s in exec_fang({'run', 'tests/'}):gmatch('[^\r\n]+') do
-  --print(s)
-  local event = json.decode(s)
+  -- print(s)
+  local event = json_decode(s)
   assert(event.type and (event.type == 'suite' or event.type == 'test'))
   assert(event.state and type(event.state) == 'string')
   assert(event[event.type] and type(event[event.type]) == 'string')
