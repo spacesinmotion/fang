@@ -1,5 +1,15 @@
 local ID_SEP = '::'
 
+local ID = {}
+ID.__index = ID
+function ID.new(r) return setmetatable({r}, ID) end
+function ID:added(p)
+  local r = setmetatable({table.unpack(self)}, ID)
+  r[#r + 1] = p
+  return r
+end
+function ID:tostring() return table.concat(self, ID_SEP) end
+
 local function ends_with(string, ending)
   return ending == '' or string:sub(-#ending) == ending
 end
@@ -164,25 +174,25 @@ function Test:list_suite_json()
   json_object(self, {'type', 'id', 'label', 'line', 'file', 'tooltip'})
 end
 
-local function parse_suite(suite, filepath, postfix)
+local function parse_suite(suite, filepath, parent_id)
+  local this_id = parent_id:added(suite.__meta.name)
   local children = {}
   for key, v in pairs(suite) do
     if key ~= '__meta' and type(v) == 'function' then
       local f_info = debug.getinfo(v)
       children[#children + 1] = Test {
-        id = key .. ID_SEP .. suite.__meta.name .. ID_SEP .. postfix,
+        id = this_id:added(key):tostring(),
         -- tooltip = key .. ID_SEP .. suite.__meta.name .. ID_SEP .. postfix,
         file = filepath,
         line = f_info.linedefined - 1,
         label = key,
       }
     elseif key ~= '__meta' and type(v) == 'table' and v.__meta then
-      children[#children + 1] = parse_suite(v, filepath,
-                                            suite.__meta.name .. ID_SEP .. postfix)
+      children[#children + 1] = parse_suite(v, filepath, this_id)
     end
   end
   return Suite {
-    id = suite.__meta.name .. ID_SEP .. postfix,
+    id = this_id:tostring(),
     -- tooltip = suite.__meta.name .. ID_SEP .. postfix,
     file = filepath:gsub('\\', '/'),
     line = suite.__meta.line - 1,
@@ -196,7 +206,8 @@ local function get_suites(path)
   each_lua_test_file(path, function(filepath)
     local ok, suite = pcall(dofile, filepath)
     if ok then
-      root.children[#root.children + 1] = parse_suite(suite, filepath, filepath)
+      root.children[#root.children + 1] =
+          parse_suite(suite, filepath, ID.new(filepath))
     end
   end)
   return root
@@ -247,26 +258,27 @@ local function test_runner(fun, name, id)
   rs:json_out()
 end
 
-local function run_recursive(suite, selection, postfix)
-  postfix = suite.__meta.name .. ID_SEP .. postfix
-  local run_all = selection.root or selection[postfix]
-  if run_all then RunState.suite(postfix, 'running'):json_out() end
+local function run_recursive(suite, selection, parent_id)
+  local this_id = parent_id:added(suite.__meta.name)
+  local this_id_s = this_id:tostring()
+  local run_all = selection.root or selection[this_id_s]
+  if run_all then RunState.suite(this_id_s, 'running'):json_out() end
   for k, v in pairs(suite) do
-    if type(v) == 'function' and (run_all or selection[k .. ID_SEP .. postfix]) then
-      test_runner(v, k, k .. ID_SEP .. postfix)
+    local k_id = this_id:added(k)
+    local k_id_s = k_id:tostring()
+    if type(v) == 'function' and (run_all or selection[k_id_s]) then
+      test_runner(v, k, k_id_s)
     elseif type(v) == 'table' and v.__meta then
-      run_recursive(v,
-                    (run_all or selection[v.__meta.name .. ID_SEP .. postfix]) and
-                        {root = true} or selection, postfix)
+      run_recursive(v, (run_all) and {root = true} or selection, this_id)
     end
   end
-  if run_all then RunState.suite(postfix, 'completed') end
+  if run_all then RunState.suite(this_id_s, 'completed'):json_out() end
 end
 
 local function run(path, selection)
   each_lua_test_file(path, function(filepath)
     local suite = dofile(filepath)
-    run_recursive(suite, selection, filepath)
+    run_recursive(suite, selection, ID.new(filepath))
   end)
 end
 

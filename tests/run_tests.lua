@@ -1,3 +1,9 @@
+local function case(name, run)
+  print(name .. '...')
+  run()
+  print('', '...ok')
+end
+
 local function json_decode(it)
   local function skip_whitespace(it)
     local x
@@ -115,78 +121,132 @@ local function count_suites_and_cases(suites)
   return s, t
 end
 
-print('Checking a list of all suites...')
-local suites_json = exec_fang({'suite', 'tests/'})
--- print(suites_json)
-local suites = json_decode(suites_json)
-tests_suites(suites)
+local num_suites, num_cases
+case('Checking a list of all suites', function()
+  local suites_json = exec_fang({'suite', 'tests/'})
+  -- print(suites_json)
+  local suites = json_decode(suites_json)
+  tests_suites(suites)
 
-local num_suites, num_cases = count_suites_and_cases(suites)
-assert(num_suites == 5,
-       'expected different test suite count then ' .. num_suites)
-assert(num_cases == 7, 'expected different test case count then ' .. num_cases)
-print('', '...ok')
+  num_suites, num_cases = count_suites_and_cases(suites)
+  assert(num_suites == 5,
+         'expected different test suite count then ' .. num_suites)
+  assert(num_cases == 7, 'expected different test case count then ' .. num_cases)
+end)
 
-print('Checking running all test...')
-local unique_running_set = {}
-local running = {suite = {}, test = {}}
-local failed_tests = {}
-for s in exec_fang({'run', 'tests/'}):gmatch('[^\r\n]+') do
-  -- print(s)
-  local event = json_decode(s)
-  assert(event.type and (event.type == 'suite' or event.type == 'test'))
-  assert(event.state and type(event.state) == 'string')
-  assert(event[event.type] and type(event[event.type]) == 'string')
+case('Checking running all test', function()
+  local unique_running_set = {}
+  local running = {suite = {}, test = {}}
+  local failed_tests = {}
+  for s in exec_fang({'run', 'tests/'}):gmatch('[^\r\n]+') do
+    -- print(s)
+    local event = json_decode(s)
+    assert(event.type and (event.type == 'suite' or event.type == 'test'))
+    assert(event.state and type(event.state) == 'string')
+    assert(event[event.type] and type(event[event.type]) == 'string')
 
-  if event.state == 'running' then
-    local id = event[event.type]
-    assert(unique_running_set[id] == nil, 'A non unique id found: ' .. id)
-    unique_running_set[id] = true
-    running[event.type][#running[event.type] + 1] = id
-  else
-    if event.type == 'test' then
-      assert(event.state == 'passed' or event.state == 'failed',
-             'wrong test event state ' .. event.state)
-      assert(event.decorations and type(event.decorations) == 'table',
-             'wrong test decorations')
-      if event.state == 'passed' then
-        assert(#event.decorations == 0)
-      elseif event.state == 'failed' then
-        assert(#event.decorations > 0)
-        failed_tests[event[event.type]] = event.decorations
-      end
-    elseif event.type == 'suite' then
-      assert(event.state == 'completed')
+    if event.state == 'running' then
+      local id = event[event.type]
+      assert(unique_running_set[id] == nil, 'A non unique id found: ' .. id)
+      unique_running_set[id] = true
+      running[event.type][#running[event.type] + 1] = id
     else
-      assert(false, 'missing test implementation')
+      if event.type == 'test' then
+        assert(event.state == 'passed' or event.state == 'failed',
+               'wrong test event state ' .. event.state)
+        assert(event.decorations and type(event.decorations) == 'table',
+               'wrong test decorations')
+        if event.state == 'passed' then
+          assert(#event.decorations == 0)
+        elseif event.state == 'failed' then
+          assert(#event.decorations > 0)
+          failed_tests[event[event.type]] = event.decorations
+        end
+      elseif event.type == 'suite' then
+        assert(event.state == 'completed')
+      else
+        assert(false, 'missing test implementation')
+      end
     end
+
+    -- print(event.type, event.state, event[event.type], s)
   end
 
-  -- print(event.type, event.state, event[event.type], s)
-end
+  -- do not count 'root'
+  assert(#running.suite == num_suites - 1,
+         'did not run all suites ' .. #running.suite)
+  assert(#running.test == num_cases, 'did not run all test cases')
 
--- do not count 'root'
-assert(#running.suite == num_suites - 1,
-       'did not run all suites ' .. #running.suite)
-assert(#running.test == num_cases, 'did not run all test cases')
+  local f1 =
+      failed_tests['tests//examples/factorial_test.lua::factorial_tests::broken::two']
+  assert(f1, 'missing failed test')
+  assert(f1[1].line == 19)
+  assert(f1[1].message == 'not true')
 
-local f1 =
-    failed_tests['two::broken::factorial_tests::tests//examples/factorial_test.lua']
-assert(f1, 'missing failed test')
-assert(f1[1].line == 19)
-assert(f1[1].message == 'not true')
+  local f2 =
+      failed_tests['tests//examples/arithmetic_test.lua::arithmetic_test::addition_broken']
+  assert(f2, 'missing failed test')
+  assert(f2[1].line == 8)
+  assert(f2[1].message == 'not true')
+  assert(f2[2].line == 9)
+  assert(f2[2].message == 'not true')
+  -- for k, v in pairs(failed_tests) do
+  --   print(k)
+  --   for i, e in ipairs(v) do print(i, e.line, e.message) end
+  -- end
+end)
 
-local f2 =
-    failed_tests['addition_broken::arithmetic_test::tests//examples/arithmetic_test.lua']
-assert(f2, 'missing failed test')
-assert(f2[1].line == 8)
-assert(f2[1].message == 'not true')
-assert(f2[2].line == 9)
-assert(f2[2].message == 'not true')
+case('Checking running 2 single test', function()
+  local count = 0
+  local case1 =
+      'tests//examples/arithmetic_test.lua::arithmetic_test::addition_broken'
+  local case2 =
+      'tests//examples/factorial_test.lua::factorial_tests::broken::two'
+  for s in exec_fang({'run', case1, case2, 'tests/'}):gmatch('[^\r\n]+') do
+    s = json_decode(s)
+    assert(s.test, 'expect test run got ' .. tostring(s.type))
+    assert(s.test == case1 or s.test == case2,
+           'wrong test run ' .. tostring(s.test))
+    count = count + 1
+  end
+  assert(count == 4, 'expect 4 messages for 2 single test case')
+end)
 
--- for k, v in pairs(failed_tests) do
---   print(k)
---   for i, e in ipairs(v) do print(i, e.line, e.message) end
--- end
+case('Checking running single test', function()
+  local count = 0
+  local case =
+      'tests//examples/arithmetic_test.lua::arithmetic_test::addition_broken'
+  for s in exec_fang({'run', case, 'tests/'}):gmatch('[^\r\n]+') do
+    s = json_decode(s)
+    assert(s.test, 'expect test run got ' .. tostring(s.type))
+    assert(s.test == case, 'wrong test run ' .. tostring(s.test))
+    count = count + 1
+  end
+  assert(count == 2, 'expect 2 messages for a single test case')
+end)
 
-print('', '...ok')
+case('Checking running single test suite', function()
+  local count = 0
+  local suite = 'tests//examples/factorial_test.lua::factorial_tests::broken'
+  for s in exec_fang({'run', suite, 'tests/'}):gmatch('[^\r\n]+') do
+    -- print(s)
+    s = json_decode(s)
+    assert(s[s.type]:sub(1, #suite) == suite,
+           'wrong test run ' .. tostring(s.test))
+    count = count + 1
+  end
+  assert(count == 4, 'expect 4 messages for this suite')
+end)
+
+case('Checking running other single test suite...', function()
+  local count = 0
+  local suite = 'tests//examples/arithmetic_test.lua::arithmetic_test'
+  for s in exec_fang({'run', suite, 'tests/'}):gmatch('[^\r\n]+') do
+    -- print(s)
+    s = json_decode(s)
+    assert(s[s.type]:sub(1, #suite) == suite,
+           'wrong test run ' .. tostring(s.test))
+    count = count + 1
+  end
+  assert(count == 6, 'expect 4 messages for this suite')
+end)
