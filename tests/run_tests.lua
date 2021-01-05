@@ -171,13 +171,13 @@ assert(#running.suite == num_suites - 1,
 assert(#running.test == num_cases, 'did not run all test cases')
 
 local f1 =
-    failed_tests['two.broken.factorial_tests.tests//examples/factorial_test.lua']
+    failed_tests['two::broken::factorial_tests::tests//examples/factorial_test.lua']
 assert(f1, 'missing failed test')
 assert(f1[1].line == 19)
 assert(f1[1].message == 'not true')
 
 local f2 =
-    failed_tests['addition_broken.arithmetic_test.tests//examples/arithmetic_test.lua']
+    failed_tests['addition_broken::arithmetic_test::tests//examples/arithmetic_test.lua']
 assert(f2, 'missing failed test')
 assert(f2[1].line == 8)
 assert(f2[1].message == 'not true')

@@ -1,3 +1,5 @@
+local ID_SEP = '::'
+
 local function ends_with(string, ending)
   return ending == '' or string:sub(-#ending) == ending
 end
@@ -168,20 +170,20 @@ local function parse_suite(suite, filepath, postfix)
     if key ~= '__meta' and type(v) == 'function' then
       local f_info = debug.getinfo(v)
       children[#children + 1] = Test {
-        id = key .. '.' .. suite.__meta.name .. '.' .. postfix,
-        -- tooltip = key .. '.' .. suite.__meta.name .. '.' .. postfix,
+        id = key .. ID_SEP .. suite.__meta.name .. ID_SEP .. postfix,
+        -- tooltip = key .. ID_SEP .. suite.__meta.name .. ID_SEP .. postfix,
         file = filepath,
         line = f_info.linedefined - 1,
         label = key,
       }
     elseif key ~= '__meta' and type(v) == 'table' and v.__meta then
       children[#children + 1] = parse_suite(v, filepath,
-                                            suite.__meta.name .. '.' .. postfix)
+                                            suite.__meta.name .. ID_SEP .. postfix)
     end
   end
   return Suite {
-    id = suite.__meta.name .. '.' .. postfix,
-    -- tooltip = suite.__meta.name .. '.' .. postfix,
+    id = suite.__meta.name .. ID_SEP .. postfix,
+    -- tooltip = suite.__meta.name .. ID_SEP .. postfix,
     file = filepath:gsub('\\', '/'),
     line = suite.__meta.line - 1,
     label = suite.__meta.name,
@@ -246,15 +248,15 @@ local function test_runner(fun, name, id)
 end
 
 local function run_recursive(suite, selection, postfix)
-  postfix = suite.__meta.name .. '.' .. postfix
+  postfix = suite.__meta.name .. ID_SEP .. postfix
   local run_all = selection.root or selection[postfix]
   if run_all then RunState.suite(postfix, 'running'):json_out() end
   for k, v in pairs(suite) do
-    if type(v) == 'function' and (run_all or selection[k .. '.' .. postfix]) then
-      test_runner(v, k, k .. '.' .. postfix)
+    if type(v) == 'function' and (run_all or selection[k .. ID_SEP .. postfix]) then
+      test_runner(v, k, k .. ID_SEP .. postfix)
     elseif type(v) == 'table' and v.__meta then
       run_recursive(v,
-                    (run_all or selection[v.__meta.name .. '.' .. postfix]) and
+                    (run_all or selection[v.__meta.name .. ID_SEP .. postfix]) and
                         {root = true} or selection, postfix)
     end
   end
