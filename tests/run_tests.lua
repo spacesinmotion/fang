@@ -215,7 +215,7 @@ case('Checking running single test', function()
   local count = 0
   local case =
       'tests/examples/arithmetic_test.lua::arithmetic_test::addition_broken'
-  for s in exec_fang({'run', case, 'tests/examples'}):gmatch('[^\r\n]+') do
+  for s in exec_fang({'run', 'tests/examples', case}):gmatch('[^\r\n]+') do
     s = json_decode(s)
     assert(s.test, 'expect test run got ' .. tostring(s.type))
     assert(s.test == case, 'wrong test run ' .. tostring(s.test))
@@ -230,7 +230,7 @@ case('Checking running 2 single test', function()
       'tests/examples/arithmetic_test.lua::arithmetic_test::addition_broken'
   local case2 =
       'tests/examples/factorial_test.lua::factorial_tests::broken::two'
-  for s in exec_fang({'run', case1, case2, 'tests/examples'}):gmatch('[^\r\n]+') do
+  for s in exec_fang({'run', 'tests/examples', case1, case2}):gmatch('[^\r\n]+') do
     s = json_decode(s)
     assert(s.test, 'expect test run got ' .. tostring(s.type))
     assert(s.test == case1 or s.test == case2,
@@ -243,7 +243,7 @@ end)
 case('Checking running single test suite', function()
   local count = 0
   local suite = 'tests/examples/factorial_test.lua::factorial_tests::broken'
-  for s in exec_fang({'run', suite, 'tests/examples'}):gmatch('[^\r\n]+') do
+  for s in exec_fang({'run', 'tests/examples', suite}):gmatch('[^\r\n]+') do
     -- print(s)
     s = json_decode(s)
     assert(s[s.type]:sub(1, #suite) == suite,
@@ -256,7 +256,7 @@ end)
 case('Checking running other single test suite...', function()
   local count = 0
   local suite = 'tests/examples/arithmetic_test.lua::arithmetic_test'
-  for s in exec_fang({'run', suite, 'tests/examples'}):gmatch('[^\r\n]+') do
+  for s in exec_fang({'run', 'tests/examples', suite}):gmatch('[^\r\n]+') do
     -- print(s)
     s = json_decode(s)
     assert(s[s.type]:sub(1, #suite) == suite,

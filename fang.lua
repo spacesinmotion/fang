@@ -289,11 +289,7 @@ package.path = arg[#arg] .. '/?.lua;' .. package.path
 if arg[1] == 'suite' then
   get_suites(arg[2]):list_suite_json()
 elseif arg[1] == 'run' then
-  if #arg == 2 then
-    run(arg[#arg], {root = true})
-  else
-    local as_set = {}
-    for i = 2, #arg - 1 do as_set[arg[i]] = true end
-    run(arg[#arg], as_set)
-  end
+  local as_set = {}
+  for i = 3, #arg do as_set[arg[i]] = true end
+  run(arg[2], #arg == 2 and {root = true} or as_set)
 end
