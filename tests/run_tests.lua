@@ -136,10 +136,17 @@ case('Checking a list of all suites', function()
 end)
 
 case('Check list no test files defined', function()
-  local out = exec_fang({'suite', 'tests/dir_with_out_tests/'})
+  local out = exec_fang({'suite', 'tests/dir_with_out_tests'})
   local json = json_decode(out)
-  assert(json.children and type(json.children) == 'table' and #json.children ==
-             0)
+  assert(json.children and type(json.children) == 'table')
+  assert(#json.children == 0)
+end)
+
+case('Check list only empty test files defined', function()
+  local out = exec_fang({'suite', 'tests/dir_with_empty_test_files'})
+  local json = json_decode(out)
+  assert(json.children and type(json.children) == 'table')
+  assert(#json.children == 0)
 end)
 
 case('Checking running all test', function()

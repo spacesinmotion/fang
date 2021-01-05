@@ -204,8 +204,11 @@ end
 local function get_suites(path)
   local root = Suite {id = 'root', label = 'FangLuaTest', children = {}}
   each_lua_test_file(path, function(filepath)
+    local xprint = print
+    print = function() end
     local ok, suite = pcall(dofile, filepath)
-    if ok then
+    print = xprint
+    if ok and suite and suite.__meta then
       root.children[#root.children + 1] =
           parse_suite(suite, filepath, ID.new(filepath))
     end
