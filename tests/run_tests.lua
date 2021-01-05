@@ -4,13 +4,14 @@ local function case(name, run)
   print('', '...ok')
 end
 
-local function json_decode(it)
-  local function skip_whitespace(it)
+local function json_decode(text_or_it)
+  local function skip_whitespace(itx)
     local x
-    repeat x = it() until x == nil or x:match('%s') == nil
+    repeat x = itx() until x == nil or x:match('%s') == nil
     return x
   end
-  local it = type(it) == 'string' and it:gmatch('.') or it
+  local it = type(text_or_it) == 'string' and text_or_it:gmatch('.') or
+                 text_or_it
 
   local e = skip_whitespace(it)
   if not e or e == '}' or e == ']' then
