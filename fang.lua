@@ -1,5 +1,3 @@
-local ID_SEP = '::'
-
 local ID = {}
 ID.__index = ID
 function ID.new(r) return setmetatable({r}, ID) end
@@ -8,7 +6,7 @@ function ID:added(p)
   r[#r + 1] = p
   return r
 end
-function ID:tostring() return table.concat(self, ID_SEP) end
+function ID:tostring() return table.concat(self, '::') end
 
 local function ends_with(string, ending)
   return ending == '' or string:sub(-#ending) == ending
@@ -182,7 +180,6 @@ local function parse_suite(suite, filepath, parent_id)
       local f_info = debug.getinfo(v)
       children[#children + 1] = Test {
         id = this_id:added(key):tostring(),
-        -- tooltip = key .. ID_SEP .. suite.__meta.name .. ID_SEP .. postfix,
         file = filepath,
         line = f_info.linedefined - 1,
         label = key,
@@ -193,7 +190,6 @@ local function parse_suite(suite, filepath, parent_id)
   end
   return Suite {
     id = this_id:tostring(),
-    -- tooltip = suite.__meta.name .. ID_SEP .. postfix,
     file = filepath:gsub('\\', '/'),
     line = suite.__meta.line - 1,
     label = suite.__meta.name,
