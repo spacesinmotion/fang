@@ -188,14 +188,15 @@ case('Checking running all test', function()
   end
 
   -- do not count 'root'
-  assert(#running.suite == num_suites - 1,
-         'did not run all suites ' .. #running.suite)
-  assert(#running.test == num_cases, 'did not run all test cases')
+  assert(#running.suite == num_suites,
+         'did not run all suites ' .. #running.suite .. ' ' .. num_suites)
+  assert(#running.test == num_cases,
+         'did not run all test cases ' .. #running.test .. ' ' .. num_cases)
 
   local f1 =
       failed_tests['tests/examples/factorial_test.lua::factorial_tests::broken::two']
   assert(f1, 'missing failed test')
-  assert(f1[1].line == 19)
+  assert(f1[1].line == 19, 'failed test got wront line 19 ' .. f1[1].line)
   assert(f1[1].message == 'not true')
 
   local f2 =
@@ -216,12 +217,13 @@ case('Checking running single test', function()
   local case =
       'tests/examples/arithmetic_test.lua::arithmetic_test::addition_broken'
   for s in exec_fang({'run', 'tests/examples', case}):gmatch('[^\r\n]+') do
+    -- print(s)
     s = json_decode(s)
     assert(s.test, 'expect test run got ' .. tostring(s.type))
     assert(s.test == case, 'wrong test run ' .. tostring(s.test))
     count = count + 1
   end
-  assert(count == 2, 'expect 2 messages for a single test case')
+  assert(count == 2, 'expect 2 messages for a single test case ' .. count)
 end)
 
 case('Checking running 2 single test', function()

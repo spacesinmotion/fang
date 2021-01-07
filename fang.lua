@@ -8,6 +8,49 @@ function ID:added(p)
 end
 function ID:tostring() return table.concat(self, '::') end
 
+local function json_object(o, ...)
+  io.write('{')
+  for i, k in ipairs(...) do
+    if o[k] then
+      if i > 1 then io.write(',') end
+      io.write('"' .. k .. '":')
+      if type(o[k]) == 'string' then
+        io.write('"' .. o[k]:gsub('\n', '\\n') .. '"')
+      end
+      if type(o[k]) == 'number' then io.write(tostring(o[k])) end
+      if type(o[k]) == 'table' then
+        io.write('[')
+        local sub = o[k]
+        for j = 1, #sub do
+          if j > 1 then io.write(',') end
+          sub[j]:list_suite_json()
+        end
+        io.write(']')
+      end
+    end
+  end
+  io.write('}')
+end
+
+local Suite_mt = {}
+local Suite = setmetatable({type = 'suite'}, Suite_mt)
+function Suite_mt:__call(args) return setmetatable(args, Suite) end
+Suite.__index = Suite
+
+function Suite:list_suite_json()
+  json_object(self,
+              {'type', 'id', 'label', 'line', 'file', 'tooltip', 'children'})
+end
+
+local Test_mt = {}
+local Test = setmetatable({type = 'test'}, Test_mt)
+function Test_mt:__call(args) return setmetatable(args, Test) end
+Test.__index = Test
+
+function Test:list_suite_json()
+  json_object(self, {'type', 'id', 'label', 'line', 'file', 'tooltip'})
+end
+
 local function ends_with(string, ending)
   return ending == '' or string:sub(-#ending) == ending
 end
@@ -42,7 +85,7 @@ local function each_lua_test_file(directory, cb)
   end)
 end
 
-local function get_linenumber_from_traceback(text, line)
+local function get_line_file_from_traceback(text, line)
   line = line or 3
   local i = 0
   for s in text:gmatch('[^\r\n]+') do
@@ -50,20 +93,32 @@ local function get_linenumber_from_traceback(text, line)
     if i == line then
       local b = s:find(':', 4)
       local e = s:find(':', b + 1)
-      return tonumber(s:sub(b + 1, e - 1))
+      return tonumber(s:sub(b + 1, e - 1)), s:sub(1, b - 1)
     end
   end
   return 666
 end
 
 function TestSuite(name)
-  return {
-    __meta = {
-      name = name,
-      line = get_linenumber_from_traceback(debug.traceback(), 3),
-      tests = {},
-    },
+  local l, f = get_line_file_from_traceback(debug.traceback(), 3)
+  local idx = ID.new(f).added(name)
+  local s = {
+    idx = idx,
+    id = idx:tostring(),
+    children = {},
+    __meta = {label = name, children = {}, name = name, file = f, line = l},
   }
+  function s:case(name, fn)
+    local db = debug.getinfo(fn)
+    self.children[#self.children + 1] = Test {
+      id = self.idx:added(name):tostring(),
+      file = db.source,
+      line = db.linedefined - 1,
+      label = name,
+      run = fn,
+    }
+  end
+  return s
 end
 
 local current_errors
@@ -75,12 +130,12 @@ local function push_error(line, err)
 end
 
 local function add_error(e)
-  push_error(get_linenumber_from_traceback(debug.traceback(), 4), e)
+  push_error(get_line_file_from_traceback(debug.traceback(), 4), e)
 end
 
 local ASSERT = {}
 local function add_assert(e)
-  push_error(get_linenumber_from_traceback(debug.traceback(), 4), e .. ' STOP')
+  push_error(get_line_file_from_traceback(debug.traceback(), 4), e .. ' STOP')
   error(ASSERT)
 end
 
@@ -129,89 +184,6 @@ function ASSERT_NE(a, b)
   add_assert('expect not ' .. (a or '(nil)'))
 end
 
-local function json_object(o, ...)
-  io.write('{')
-  for i, k in ipairs(...) do
-    if o[k] then
-      if i > 1 then io.write(',') end
-      io.write('"' .. k .. '":')
-      if type(o[k]) == 'string' then
-        io.write('"' .. o[k]:gsub('\n', '\\n') .. '"')
-      end
-      if type(o[k]) == 'number' then io.write(tostring(o[k])) end
-      if type(o[k]) == 'table' then
-        io.write('[')
-        local sub = o[k]
-        for j = 1, #sub do
-          if j > 1 then io.write(',') end
-          sub[j]:list_suite_json()
-        end
-        io.write(']')
-      end
-    end
-  end
-  io.write('}')
-end
-
-local Suite_mt = {}
-local Suite = setmetatable({type = 'suite'}, Suite_mt)
-function Suite_mt:__call(args) return setmetatable(args, Suite) end
-Suite.__index = Suite
-
-function Suite:list_suite_json()
-  json_object(self,
-              {'type', 'id', 'label', 'line', 'file', 'tooltip', 'children'})
-end
-
-local Test_mt = {}
-local Test = setmetatable({type = 'test'}, Test_mt)
-function Test_mt:__call(args) return setmetatable(args, Test) end
-Test.__index = Test
-
-function Test:list_suite_json()
-  json_object(self, {'type', 'id', 'label', 'line', 'file', 'tooltip'})
-end
-
-local function parse_suite(suite, filepath, parent_id)
-  local this_id = parent_id:added(suite.__meta.name)
-  local children = {}
-  for key, v in pairs(suite) do
-    if key ~= '__meta' and type(v) == 'function' then
-      local f_info = debug.getinfo(v)
-      children[#children + 1] = Test {
-        id = this_id:added(key):tostring(),
-        file = filepath,
-        line = f_info.linedefined - 1,
-        label = key,
-      }
-    elseif key ~= '__meta' and type(v) == 'table' and v.__meta then
-      children[#children + 1] = parse_suite(v, filepath, this_id)
-    end
-  end
-  return Suite {
-    id = this_id:tostring(),
-    file = filepath:gsub('\\', '/'),
-    line = suite.__meta.line - 1,
-    label = suite.__meta.name,
-    children = children,
-  }
-end
-
-local function get_suites(path)
-  local root = Suite {id = 'root', label = 'FangLuaTest', children = {}}
-  each_lua_test_file(path, function(filepath)
-    local xprint = print
-    print = function() end
-    local ok, suite = pcall(dofile, filepath)
-    print = xprint
-    if ok and suite and suite.__meta then
-      root.children[#root.children + 1] =
-          parse_suite(suite, filepath, ID.new(filepath))
-    end
-  end)
-  return root
-end
-
 local function run_test_call(fun)
   local _ENV = {}
   fun()
@@ -244,6 +216,15 @@ function RunState:json_out()
       json_object(self, {'type', self.type, 'state', 'message', 'decorations'}))
 end
 
+function Suite:run(select)
+  local sel = nil
+  if select and not select[self.id] then sel = select end
+  -- if select and not select[self.id] then return end
+  if not sel then RunState.suite(self.id, 'running'):json_out() end
+  for i, v in ipairs(self.children) do v:run(sel) end
+  if not sel then RunState.suite(self.id, 'completed'):json_out() end
+end
+
 local function test_runner(fun, name, id)
   RunState.test(id, 'running'):json_out()
 
@@ -257,28 +238,49 @@ local function test_runner(fun, name, id)
   rs:json_out()
 end
 
-local function run_recursive(suite, selection, parent_id)
+local function parse_suite(suite, parent_id)
   local this_id = parent_id:added(suite.__meta.name)
-  local this_id_s = this_id:tostring()
-  local run_all = selection.root or selection[this_id_s]
-  if run_all then RunState.suite(this_id_s, 'running'):json_out() end
-  for k, v in pairs(suite) do
-    local k_id = this_id:added(k)
-    local k_id_s = k_id:tostring()
-    if type(v) == 'function' and (run_all or selection[k_id_s]) then
-      test_runner(v, k, k_id_s)
+  local res = Suite {
+    id = this_id:tostring(),
+    file = suite.__meta.file,
+    line = suite.__meta.line - 1,
+    label = suite.__meta.name,
+    children = suite.children or {},
+  }
+  for key, v in pairs(suite) do
+    if key ~= 'case' and type(v) == 'function' then
+      local f_info = debug.getinfo(v)
+      res.children[#res.children + 1] = Test {
+        id = this_id:added(key):tostring(),
+        file = suite.__meta.file,
+        line = f_info.linedefined - 1,
+        label = key,
+        name = key,
+        run = function(self, select)
+          if not select or select[self.id] then
+            test_runner(v, self.name, self.id)
+          end
+        end,
+      }
     elseif type(v) == 'table' and v.__meta then
-      run_recursive(v, (run_all) and {root = true} or selection, this_id)
+      res.children[#res.children + 1] = parse_suite(v, this_id)
     end
   end
-  if run_all then RunState.suite(this_id_s, 'completed'):json_out() end
+  return res
 end
 
-local function run(path, selection)
+local function get_suites(path)
+  local root = Suite {id = 'root', label = 'FangLuaTest', children = {}}
   each_lua_test_file(path, function(filepath)
-    local suite = dofile(filepath)
-    run_recursive(suite, selection, ID.new(filepath))
+    local xprint = print
+    print = function() end
+    local ok, suite = pcall(dofile, filepath)
+    print = xprint
+    if ok and suite and suite.__meta then
+      root.children[#root.children + 1] = parse_suite(suite, ID.new(filepath))
+    end
   end)
+  return root
 end
 
 package.path = arg[#arg] .. '/?.lua;' .. package.path
@@ -287,5 +289,5 @@ if arg[1] == 'suite' then
 elseif arg[1] == 'run' then
   local as_set = {}
   for i = 3, #arg do as_set[arg[i]] = true end
-  run(arg[2], #arg == 2 and {root = true} or as_set)
+  get_suites(arg[2]):run(#arg > 2 and as_set or nil)
 end
