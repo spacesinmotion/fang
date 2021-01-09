@@ -111,7 +111,7 @@ function TestSuite(name)
     name = name,
     file = f,
     line = l,
-    __meta = {file = f, line = l},
+    is_suite = true,
   }
   function s:case(name, fn)
     local db = debug.getinfo(fn)
@@ -128,6 +128,7 @@ function TestSuite(name)
     local ss = TestSuite(subname)
     ss.idx = self.idx:added(subname)
     ss.id = ss.idx:tostring()
+    self.children[#self.children + 1] = ss
     return ss
   end
   return s
@@ -231,7 +232,6 @@ end
 function Suite:run(select)
   local sel = nil
   if select and not select[self.id] then sel = select end
-  -- if select and not select[self.id] then return end
   if not sel then RunState.suite(self.id, 'running'):json_out() end
   for i, v in ipairs(self.children) do v:run(sel) end
   if not sel then RunState.suite(self.id, 'completed'):json_out() end
@@ -256,15 +256,6 @@ function Test:run(select)
   end
 end
 
-local function parse_suite(suite)
-  for key, v in pairs(suite) do
-    if type(v) == 'table' and v.__meta then
-      suite.children[#suite.children + 1] = parse_suite(v)
-    end
-  end
-  return suite
-end
-
 local function get_suites(path)
   local root = Suite {id = 'root', label = 'FangLuaTest', children = {}}
   each_lua_test_file(path, function(filepath)
@@ -272,8 +263,8 @@ local function get_suites(path)
     print = function() end
     local ok, suite = pcall(dofile, filepath)
     print = xprint
-    if ok and suite and suite.__meta then
-      root.children[#root.children + 1] = parse_suite(suite)
+    if ok and suite and suite.is_suite then
+      root.children[#root.children + 1] = suite
     end
   end)
   return root
