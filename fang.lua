@@ -15,6 +15,32 @@ function ID:added(p)
 end
 function ID:tostring() return table.concat(self, '::') end
 
+local function json(o, newline)
+  newline = newline or '\n'
+  if type(o) == 'number' then
+    io.write(tostring(o))
+  elseif type(o) == 'string' then
+    io.write('"' .. o:gsub('\n', '\\n') .. '"')
+  elseif type(o) == 'table' and type(o[1]) == 'nil' then
+    local start = true
+    io.write('{')
+    for k, v in pairs(o) do
+      if not start then io.write(',') end
+      start = false
+      io.write('"' .. k .. '":')
+      json(v, '')
+    end
+    io.write('}' .. newline)
+  elseif type(o) == 'table' then
+    io.write('[')
+    for i, v in ipairs(o) do
+      if i > 1 then io.write(',') end
+      json(v, '')
+    end
+    io.write(']' .. newline)
+  end
+end
+
 local function json_object(o, ...)
   io.write('{')
   for i, k in ipairs(...) do
@@ -200,53 +226,51 @@ local function get_suites(path)
   return root
 end
 
-local function vscode(s)
-  local function st(v) return '"' .. v:gsub('\n', '\\n') .. '"' end
-  local function kv(k, v) return st(k) .. ':' .. v end
-  io.write('{')
-  io.write(kv('type', st(s.type)))
-  io.write(',')
-  io.write(kv(s.type, st(s[s.type])))
-  io.write(',')
-  io.write(kv('state', st(s.state)))
-  if s.message then io.write(',' .. kv('message', st(s.message)) .. ',') end
-  if s.decorations then
-    io.write(st('decorations') .. ':[')
-    for i, v in ipairs(s.decorations) do
-      if i > 1 then io.write(',') end
-      io.write('{')
-      io.write(kv('line', v.line))
-      io.write(',')
-      io.write(kv('message', st(v.message)))
-      io.write('}')
+local function json(o, newline)
+  newline = newline or '\n'
+  if type(o) == 'number' then
+    io.write(tostring(o))
+  elseif type(o) == 'string' then
+    io.write('"' .. o:gsub('\n', '\\n') .. '"')
+  elseif type(o) == 'table' and type(o[1]) == 'nil' then
+    local start = true
+    io.write('{')
+    for k, v in pairs(o) do
+      if not start then io.write(',') end
+      start = false
+      io.write('"' .. k .. '":')
+      json(v, '')
     end
-    io.write(']')
+    io.write('}' .. newline)
+  elseif type(o) == 'table' then
+    io.write('[')
+    for i, v in ipairs(o) do
+      if i > 1 then io.write(',') end
+      json(v, '')
+    end
+    io.write(']' .. newline)
   end
-  io.write('}\n')
 end
 
 local VSCodeReporter = {}
 function VSCodeReporter.start_suite(s)
-  vscode {type = 'suite', suite = s.id, state = 'running'}
+  json {type = 'suite', suite = s.id, state = 'running'}
 end
 function VSCodeReporter.stop_suite(s)
-  vscode {type = 'suite', suite = s.id, state = 'completed'}
+  json {type = 'suite', suite = s.id, state = 'completed'}
 end
 function VSCodeReporter.start_case(c)
-  vscode {type = 'test', test = c.id, state = 'running'}
+  json {type = 'test', test = c.id, state = 'running'}
 end
 function VSCodeReporter.stop_case(c, errors)
   local function m()
     local message = c.name .. ':\n  '
     for _, v in ipairs(errors) do
-      v.list_suite_json = function(self)
-        return json_object(self, {'line', 'message'})
-      end
       message = message .. v.line + 1 .. ': ' .. v.message .. '\n  '
     end
     return message
   end
-  vscode {
+  json {
     type = 'test',
     test = c.id,
     state = #errors == 0 and 'passed' or 'failed',
