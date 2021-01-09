@@ -51,40 +51,6 @@ function Test:list_suite_json()
   json_object(self, {'type', 'id', 'label', 'line', 'file', 'tooltip'})
 end
 
-local function ends_with(string, ending)
-  return ending == '' or string:sub(-#ending) == ending
-end
-
-local function exists(file)
-  local ok, err, code = os.rename(file, file)
-  if not ok and code == 13 then return true end
-  return ok, err
-end
-
-local function isdir(path) return exists(path .. '/') end
-
-local SEPARATOR = package.config:sub(1, 1)
-
-local function is_windows() return SEPARATOR == '\\' end
-
-local function each_file_in(directory, cb)
-  local call = is_windows() and 'dir "' .. directory .. '" /b' or 'ls "' ..
-                   directory .. '"'
-  local pfile = io.popen(call)
-  for filename in pfile:lines() do cb(directory .. SEPARATOR .. filename) end
-  pfile:close()
-end
-
-local function each_lua_test_file(directory, cb)
-  each_file_in(directory, function(filepath)
-    if isdir(filepath) then
-      each_lua_test_file(filepath, cb)
-    elseif ends_with(filepath, '_test.lua') then
-      cb(filepath)
-    end
-  end)
-end
-
 local function get_line_file_from_traceback(text, line)
   line = line or 3
   local i = 0
@@ -161,42 +127,6 @@ function REQUIRE(condition)
   add_assert('not true')
 end
 
-function EXPECT_TRUE(condition)
-  if condition then return end
-  add_error('not true')
-end
-function ASSERT_TRUE(condition)
-  if condition then return end
-  add_assert('not true')
-end
-
-function EXPECT_FALSE(condition)
-  if not condition then return end
-  add_error('not false')
-end
-function ASSERT_FALSE(condition)
-  if not condition then return end
-  add_assert('not false')
-end
-
-function EXPECT_EQ(a, b)
-  if a == b then return end
-  add_error('got ' .. (a or '(nil)') .. ', expect ' .. (b or '(nil)'))
-end
-function ASSERT_EQ(a, b)
-  if a == b then return end
-  add_assert('got ' .. (a or '(nil)') .. ', expect ' .. (b or '(nil)'))
-end
-
-function EXPECT_NE(a, b)
-  if a ~= b then return end
-  add_error('expect not ' .. (a or '(nil)'))
-end
-function ASSERT_NE(a, b)
-  if a ~= b then return end
-  add_assert('expect not ' .. (a or '(nil)'))
-end
-
 local function run_test_call(fun)
   local _ENV = {}
   fun()
@@ -254,6 +184,40 @@ function Test:run(select)
   if not select or select[self.id] then
     test_runner(self.test_fn, self.name, self.id)
   end
+end
+
+local function ends_with(string, ending)
+  return ending == '' or string:sub(-#ending) == ending
+end
+
+local function exists(file)
+  local ok, err, code = os.rename(file, file)
+  if not ok and code == 13 then return true end
+  return ok, err
+end
+
+local function isdir(path) return exists(path .. '/') end
+
+local SEPARATOR = package.config:sub(1, 1)
+
+local function is_windows() return SEPARATOR == '\\' end
+
+local function each_file_in(directory, cb)
+  local call = is_windows() and 'dir "' .. directory .. '" /b' or 'ls "' ..
+                   directory .. '"'
+  local pfile = io.popen(call)
+  for filename in pfile:lines() do cb(directory .. SEPARATOR .. filename) end
+  pfile:close()
+end
+
+local function each_lua_test_file(directory, cb)
+  each_file_in(directory, function(filepath)
+    if isdir(filepath) then
+      each_lua_test_file(filepath, cb)
+    elseif ends_with(filepath, '_test.lua') then
+      cb(filepath)
+    end
+  end)
 end
 
 local function get_suites(path)
