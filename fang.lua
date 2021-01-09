@@ -120,7 +120,7 @@ function TestSuite(name)
       file = db.source,
       line = db.linedefined - 1,
       label = name,
-      run = fn,
+      test_fn = fn,
     }
   end
   function s:SubSuite(subname)
@@ -249,6 +249,12 @@ local function test_runner(fun, name, id)
   rs:json_out()
 end
 
+function Test:run(select)
+  if not select or select[self.id] then
+    test_runner(self.test_fn, self.name, self.id)
+  end
+end
+
 local function parse_suite(suite)
   for key, v in pairs(suite) do
     if key ~= 'case' and key ~= 'SubSuite' and type(v) == 'function' then
@@ -260,11 +266,7 @@ local function parse_suite(suite)
             line = f_info.linedefined - 1,
             label = key,
             name = key,
-            run = function(self, select)
-              if not select or select[self.id] then
-                test_runner(v, self.name, self.id)
-              end
-            end,
+            test_fn = v,
           }
     elseif type(v) == 'table' and v.__meta then
       suite.children[#suite.children + 1] = parse_suite(v)
