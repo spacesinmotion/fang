@@ -73,7 +73,7 @@ function Test:list_suite_json()
   json_object(self, {'type', 'id', 'label', 'line', 'file', 'tooltip'})
 end
 
-function Test:runner(fun, name, id)
+function Test:runner(reporter, fun, name, id)
   local current_errors = {}
 
   local function get_line()
@@ -116,16 +116,15 @@ function Test:runner(fun, name, id)
     fun()
   end
 
-  RunState.test(id, 'running'):json_out()
+  reporter.start_case(self)
   local ok, err = pcall(run_test_call, fun)
   if not ok and err ~= ASSERT then push_error(0, tostring(err)) end
-  RunState.test(id, #current_errors == 0 and 'passed' or 'failed'):set_errors(
-      name, current_errors):json_out()
+  reporter.stop_case(self, current_errors)
 end
 
-function Test:run(select)
+function Test:run(reporter, select)
   if not select or select[self.id] then
-    self:runner(self.test_fn, self.name, self.id)
+    self:runner(reporter, self.test_fn, self.name, self.id)
   end
 end
 
@@ -173,12 +172,12 @@ function TestSuite(suite_name, cb, parent_id)
   return s
 end
 
-function Suite:run(select)
+function Suite:run(reporter, select)
   local sel = nil
   if select and not select[self.id] then sel = select end
-  if not sel then RunState.suite(self.id, 'running'):json_out() end
-  for i, v in ipairs(self.children) do v:run(sel) end
-  if not sel then RunState.suite(self.id, 'completed'):json_out() end
+  if not sel then reporter.start_suite(self) end
+  for i, v in ipairs(self.children) do v:run(reporter, sel) end
+  if not sel then reporter.stop_suite(self) end
 end
 
 local function get_suites(path)
@@ -229,6 +228,18 @@ local function get_suites(path)
   return root
 end
 
+local VSCodeReporter = {}
+function VSCodeReporter.start_suite(s) RunState.suite(s.id, 'running'):json_out() end
+function VSCodeReporter.stop_suite(s)
+  RunState.suite(s.id, 'completed'):json_out()
+end
+function VSCodeReporter.start_case(c) RunState.test(c.id, 'running'):json_out() end
+function VSCodeReporter.stop_case(c, errors)
+  RunState.test(c.id, #errors == 0 and 'passed' or 'failed'):set_errors(c.name,
+                                                                        errors)
+      :json_out()
+end
+
 local function main()
   package.path = arg[#arg] .. '/?.lua;' .. package.path
   if arg[1] == 'suite' then
@@ -236,7 +247,7 @@ local function main()
   elseif arg[1] == 'run' then
     local as_set = #arg > 2 and {}
     for i = 3, #arg do as_set[arg[i]] = true end
-    get_suites(arg[2]):run(as_set)
+    get_suites(arg[2]):run(VSCodeReporter, as_set)
   end
 end
 
