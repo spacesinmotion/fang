@@ -3,7 +3,7 @@ local function factorial(number)
   return factorial(number - 1) * number
 end
 
-local suite = TestSuite('factorial_tests', function(s)
+return TestSuite('factorial_tests', function(s)
 
   s:case('one', function() CHECK(factorial(1) == 1) end)
 
@@ -19,5 +19,3 @@ local suite = TestSuite('factorial_tests', function(s)
     b:case('two', function() CHECK(factorial(2) == 42) end)
   end)
 end)
-
-return suite

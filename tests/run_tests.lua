@@ -202,9 +202,9 @@ case('Checking running all test', function()
   local f2 =
       failed_tests['tests/examples/arithmetic_test.lua::arithmetic_test::addition_broken']
   assert(f2, 'missing failed test')
-  assert(f2[1].line == 9)
+  assert(f2[1].line == 8)
   assert(f2[1].message == 'not true')
-  assert(f2[2].line == 10)
+  assert(f2[2].line == 9)
   assert(f2[2].message == 'not true')
   -- for k, v in pairs(failed_tests) do
   --   print(k)

@@ -66,9 +66,24 @@ local function get_line_file_from_traceback(text, line)
   return 666
 end
 
-function TestSuite(name, cb)
-  local l, f = get_line_file_from_traceback(debug.traceback(), 3)
-  local idx = ID.new(f):added(name)
+local function CASE(self, name, fn)
+  local db = debug.getinfo(fn)
+  self.children[#self.children + 1] = Test {
+    idx = self.idx:added(name),
+    id = self.idx:added(name):tostring(),
+    file = self.file,
+    line = db.linedefined - 1,
+    name = name,
+    label = name,
+    test_fn = fn,
+  }
+end
+
+function TestSuite(name, cb, parent_id)
+  local db = debug.getinfo(cb)
+  local f = db.source:sub(2)
+  parent_id = parent_id or ID.new(f)
+  local idx = parent_id:added(name)
   local s = Suite {
     idx = idx,
     id = idx:tostring(),
@@ -76,26 +91,12 @@ function TestSuite(name, cb)
     label = name,
     name = name,
     file = f,
-    line = l,
+    line = db.linedefined - 1,
     is_suite = true,
+    case = CASE,
   }
-  function s:case(name, fn)
-    local db = debug.getinfo(fn)
-    self.children[#self.children + 1] = Test {
-      id = self.idx:added(name):tostring(),
-      file = self.file,
-      line = db.linedefined - 1,
-      name = name,
-      label = name,
-      test_fn = fn,
-    }
-  end
   function s:SubSuite(subname, scb)
-    local ss = TestSuite(subname)
-    ss.file = self.file
-    ss.idx = self.idx:added(subname)
-    ss.id = ss.idx:tostring()
-    if scb then scb(ss) end
+    local ss = TestSuite(subname, scb, self.idx)
     self.children[#self.children + 1] = ss
     return ss
   end

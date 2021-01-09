@@ -1,5 +1,4 @@
-local suite = TestSuite('arithmetic_test', function(s)
-
+return TestSuite('arithmetic_test', function(s)
   s:case('addition', function()
     CHECK(1 + 1 == 2)
     CHECK(2 + 2 == 4)
@@ -10,4 +9,3 @@ local suite = TestSuite('arithmetic_test', function(s)
     CHECK(2 + 2 == 2)
   end)
 end)
-return suite
