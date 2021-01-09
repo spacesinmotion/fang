@@ -1,14 +1,13 @@
 local function class(n, init)
   local class_mt = {}
   local c = setmetatable({type = n}, class_mt)
-  function class_mt:__call(...) return init(setmetatable(init(...), c)) end
+  init = init or function(...) return ... end
+  function class_mt:__call(...) return setmetatable(init(...), c) end
   c.__index = c
   return c
 end
 
-local ID = {}
-ID.__index = ID
-function ID.new(r) return setmetatable({r}, ID) end
+local ID = class('ID', function(r) return {r} end)
 function ID:added(p)
   local r = setmetatable({table.unpack(self)}, ID)
   r[#r + 1] = p
@@ -40,13 +39,16 @@ local function json_object(o, ...)
   io.write('}')
 end
 
-local RunState = class('RunState', function(...) return ... end)
+local RunState = class('RunState')
+
 function RunState.test(id, state)
   return RunState {type = 'test', test = id, state = state}
 end
+
 function RunState.suite(id, state)
   return RunState {type = 'suite', suite = id, state = state}
 end
+
 function RunState:set_errors(name, errors)
   self.decorations = errors
   if #errors == 0 then return self end
@@ -59,12 +61,13 @@ function RunState:set_errors(name, errors)
   end
   return self
 end
+
 function RunState:json_out()
   print(
       json_object(self, {'type', self.type, 'state', 'message', 'decorations'}))
 end
 
-local Test = class('test', function(...) return ... end)
+local Test = class('test')
 
 function Test:list_suite_json()
   json_object(self, {'type', 'id', 'label', 'line', 'file', 'tooltip'})
@@ -119,13 +122,14 @@ function Test:runner(fun, name, id)
   RunState.test(id, #current_errors == 0 and 'passed' or 'failed'):set_errors(
       name, current_errors):json_out()
 end
+
 function Test:run(select)
   if not select or select[self.id] then
     self:runner(self.test_fn, self.name, self.id)
   end
 end
 
-local Suite = class('suite', function(...) return ... end)
+local Suite = class('suite')
 
 function Suite:case(case_name, fn)
   local db = debug.getinfo(fn)
@@ -155,7 +159,7 @@ Suite.is_suite = true
 function TestSuite(suite_name, cb, parent_id)
   local db = debug.getinfo(cb)
   local f = db.source:sub(2)
-  local idx = (parent_id or ID.new(f)):added(suite_name)
+  local idx = (parent_id or ID(f)):added(suite_name)
   local s = Suite {
     idx = idx,
     id = idx:tostring(),
