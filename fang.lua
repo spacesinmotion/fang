@@ -119,6 +119,7 @@ function TestSuite(name)
       id = self.idx:added(name):tostring(),
       file = db.source,
       line = db.linedefined - 1,
+      name = name,
       label = name,
       test_fn = fn,
     }
@@ -257,18 +258,7 @@ end
 
 local function parse_suite(suite)
   for key, v in pairs(suite) do
-    if key ~= 'case' and key ~= 'SubSuite' and type(v) == 'function' then
-      local f_info = debug.getinfo(v)
-      suite.children[#suite.children + 1] =
-          Test {
-            id = suite.idx:added(key):tostring(),
-            file = suite.file,
-            line = f_info.linedefined - 1,
-            label = key,
-            name = key,
-            test_fn = v,
-          }
-    elseif type(v) == 'table' and v.__meta then
+    if type(v) == 'table' and v.__meta then
       suite.children[#suite.children + 1] = parse_suite(v)
     end
   end
