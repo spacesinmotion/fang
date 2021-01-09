@@ -3,20 +3,21 @@ local function factorial(number)
   return factorial(number - 1) * number
 end
 
-local suite = TestSuite('factorial_tests')
+local suite = TestSuite('factorial_tests', function(s)
 
-suite:case('one', function() CHECK(factorial(1) == 1) end)
+  s:case('one', function() CHECK(factorial(1) == 1) end)
 
-suite:case('two', function() CHECK(factorial(2) == 2) end)
+  s:case('two', function() CHECK(factorial(2) == 2) end)
 
-suite:case('three', function() CHECK(factorial(3) == 6) end)
+  s:case('three', function() CHECK(factorial(3) == 6) end)
 
-suite.sub = suite:SubSuite('complex')
+  s:SubSuite('complex', function(ss)
+    ss:case('ten', function() CHECK(factorial(10) == 3628800) end)
+  end)
 
-suite.sub:case('ten', function() CHECK(factorial(10) == 3628800) end)
-
-suite.broken = suite:SubSuite('broken')
-
-suite.broken:case('two', function() CHECK(factorial(2) == 42) end)
+  s:SubSuite('broken', function(b)
+    b:case('two', function() CHECK(factorial(2) == 42) end)
+  end)
+end)
 
 return suite

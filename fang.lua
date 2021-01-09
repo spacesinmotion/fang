@@ -66,7 +66,7 @@ local function get_line_file_from_traceback(text, line)
   return 666
 end
 
-function TestSuite(name)
+function TestSuite(name, cb)
   local l, f = get_line_file_from_traceback(debug.traceback(), 3)
   local idx = ID.new(f):added(name)
   local s = Suite {
@@ -83,20 +83,23 @@ function TestSuite(name)
     local db = debug.getinfo(fn)
     self.children[#self.children + 1] = Test {
       id = self.idx:added(name):tostring(),
-      file = db.source,
+      file = self.file,
       line = db.linedefined - 1,
       name = name,
       label = name,
       test_fn = fn,
     }
   end
-  function s:SubSuite(subname)
+  function s:SubSuite(subname, scb)
     local ss = TestSuite(subname)
+    ss.file = self.file
     ss.idx = self.idx:added(subname)
     ss.id = ss.idx:tostring()
+    if scb then scb(ss) end
     self.children[#self.children + 1] = ss
     return ss
   end
+  if cb then cb(s) end
   return s
 end
 
@@ -109,12 +112,13 @@ local function push_error(line, err)
 end
 
 local function add_error(e)
-  push_error(get_line_file_from_traceback(debug.traceback(), 4), e)
+  push_error(get_line_file_from_traceback(debug.traceback(), 4) + 1, e)
 end
 
 local ASSERT = {}
 local function add_assert(e)
-  push_error(get_line_file_from_traceback(debug.traceback(), 4), e .. ' STOP')
+  push_error(get_line_file_from_traceback(debug.traceback(), 4) + 1,
+             e .. ' STOP')
   error(ASSERT)
 end
 
