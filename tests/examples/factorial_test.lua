@@ -11,11 +11,11 @@ function suite.two() CHECK(factorial(2) == 2) end
 
 function suite.three() CHECK(factorial(3) == 6) end
 
-suite.sub = TestSuite('complex')
+suite.sub = suite:SubSuite('complex')
 
 function suite.sub.ten() CHECK(factorial(10) == 3628800) end
 
-suite.broken = TestSuite('broken')
+suite.broken = suite:SubSuite('broken')
 
 function suite.broken.two() CHECK(factorial(2) == 42) end
 

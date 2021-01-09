@@ -93,7 +93,8 @@ local function get_line_file_from_traceback(text, line)
     if i == line then
       local b = s:find(':', 4)
       local e = s:find(':', b + 1)
-      return tonumber(s:sub(b + 1, e - 1)), s:sub(1, b - 1)
+      return tonumber(s:sub(b + 1, e - 1)),
+             s:sub(1, b - 1):gsub('^%s*(.-)%s*$', '%1')
     end
   end
   return 666
@@ -101,12 +102,16 @@ end
 
 function TestSuite(name)
   local l, f = get_line_file_from_traceback(debug.traceback(), 3)
-  local idx = ID.new(f).added(name)
-  local s = {
+  local idx = ID.new(f):added(name)
+  local s = Suite {
     idx = idx,
     id = idx:tostring(),
     children = {},
-    __meta = {label = name, children = {}, name = name, file = f, line = l},
+    label = name,
+    name = name,
+    file = f,
+    line = l,
+    __meta = {file = f, line = l},
   }
   function s:case(name, fn)
     local db = debug.getinfo(fn)
@@ -117,6 +122,12 @@ function TestSuite(name)
       label = name,
       run = fn,
     }
+  end
+  function s:SubSuite(subname)
+    local ss = TestSuite(subname)
+    ss.idx = self.idx:added(subname)
+    ss.id = ss.idx:tostring()
+    return ss
   end
   return s
 end
@@ -238,35 +249,28 @@ local function test_runner(fun, name, id)
   rs:json_out()
 end
 
-local function parse_suite(suite, parent_id)
-  local this_id = parent_id:added(suite.__meta.name)
-  local res = Suite {
-    id = this_id:tostring(),
-    file = suite.__meta.file,
-    line = suite.__meta.line - 1,
-    label = suite.__meta.name,
-    children = suite.children or {},
-  }
+local function parse_suite(suite)
   for key, v in pairs(suite) do
-    if key ~= 'case' and type(v) == 'function' then
+    if key ~= 'case' and key ~= 'SubSuite' and type(v) == 'function' then
       local f_info = debug.getinfo(v)
-      res.children[#res.children + 1] = Test {
-        id = this_id:added(key):tostring(),
-        file = suite.__meta.file,
-        line = f_info.linedefined - 1,
-        label = key,
-        name = key,
-        run = function(self, select)
-          if not select or select[self.id] then
-            test_runner(v, self.name, self.id)
-          end
-        end,
-      }
+      suite.children[#suite.children + 1] =
+          Test {
+            id = suite.idx:added(key):tostring(),
+            file = suite.file,
+            line = f_info.linedefined - 1,
+            label = key,
+            name = key,
+            run = function(self, select)
+              if not select or select[self.id] then
+                test_runner(v, self.name, self.id)
+              end
+            end,
+          }
     elseif type(v) == 'table' and v.__meta then
-      res.children[#res.children + 1] = parse_suite(v, this_id)
+      suite.children[#suite.children + 1] = parse_suite(v)
     end
   end
-  return res
+  return suite
 end
 
 local function get_suites(path)
@@ -277,7 +281,7 @@ local function get_suites(path)
     local ok, suite = pcall(dofile, filepath)
     print = xprint
     if ok and suite and suite.__meta then
-      root.children[#root.children + 1] = parse_suite(suite, ID.new(filepath))
+      root.children[#root.children + 1] = parse_suite(suite)
     end
   end)
   return root
