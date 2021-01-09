@@ -193,6 +193,10 @@ case('Checking running all test', function()
   assert(#running.test == num_cases,
          'did not run all test cases ' .. #running.test .. ' ' .. num_cases)
 
+  local count = 0
+  for _, _ in pairs(failed_tests) do count = count + 1 end
+  assert(count == 2, 'Expect only 2 failed tests, got ' .. count)
+
   local f1 =
       failed_tests['tests/examples/factorial_test.lua::factorial_tests::broken::two']
   assert(f1, 'missing failed test')
