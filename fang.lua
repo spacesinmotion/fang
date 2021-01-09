@@ -201,7 +201,28 @@ local function get_suites(path)
 end
 
 local function vscode(s)
-  print(json_object(s, {'type', s.type, 'state', 'message', 'decorations'}))
+  local function st(v) return '"' .. v:gsub('\n', '\\n') .. '"' end
+  local function kv(k, v) return st(k) .. ':' .. v end
+  io.write('{')
+  io.write(kv('type', st(s.type)))
+  io.write(',')
+  io.write(kv(s.type, st(s[s.type])))
+  io.write(',')
+  io.write(kv('state', st(s.state)))
+  if s.message then io.write(',' .. kv('message', st(s.message)) .. ',') end
+  if s.decorations then
+    io.write(st('decorations') .. ':[')
+    for i, v in ipairs(s.decorations) do
+      if i > 1 then io.write(',') end
+      io.write('{')
+      io.write(kv('line', v.line))
+      io.write(',')
+      io.write(kv('message', st(v.message)))
+      io.write('}')
+    end
+    io.write(']')
+  end
+  io.write('}\n')
 end
 
 local VSCodeReporter = {}
