@@ -39,34 +39,6 @@ local function json_object(o, ...)
   io.write('}')
 end
 
-local RunState = class('RunState')
-
-function RunState.test(id, state)
-  return RunState {type = 'test', test = id, state = state}
-end
-
-function RunState.suite(id, state)
-  return RunState {type = 'suite', suite = id, state = state}
-end
-
-function RunState:set_errors(name, errors)
-  self.decorations = errors
-  if #errors == 0 then return self end
-  self.message = name .. ':\n  '
-  for _, v in ipairs(errors) do
-    v.list_suite_json = function(self)
-      return json_object(self, {'line', 'message'})
-    end
-    self.message = self.message .. v.line + 1 .. ': ' .. v.message .. '\n  '
-  end
-  return self
-end
-
-function RunState:json_out()
-  print(
-      json_object(self, {'type', self.type, 'state', 'message', 'decorations'}))
-end
-
 local Test = class('test')
 
 function Test:list_suite_json()
@@ -228,16 +200,38 @@ local function get_suites(path)
   return root
 end
 
-local VSCodeReporter = {}
-function VSCodeReporter.start_suite(s) RunState.suite(s.id, 'running'):json_out() end
-function VSCodeReporter.stop_suite(s)
-  RunState.suite(s.id, 'completed'):json_out()
+local function vscode(s)
+  print(json_object(s, {'type', s.type, 'state', 'message', 'decorations'}))
 end
-function VSCodeReporter.start_case(c) RunState.test(c.id, 'running'):json_out() end
+
+local VSCodeReporter = {}
+function VSCodeReporter.start_suite(s)
+  vscode {type = 'suite', suite = s.id, state = 'running'}
+end
+function VSCodeReporter.stop_suite(s)
+  vscode {type = 'suite', suite = s.id, state = 'completed'}
+end
+function VSCodeReporter.start_case(c)
+  vscode {type = 'test', test = c.id, state = 'running'}
+end
 function VSCodeReporter.stop_case(c, errors)
-  RunState.test(c.id, #errors == 0 and 'passed' or 'failed'):set_errors(c.name,
-                                                                        errors)
-      :json_out()
+  local function m()
+    local message = c.name .. ':\n  '
+    for _, v in ipairs(errors) do
+      v.list_suite_json = function(self)
+        return json_object(self, {'line', 'message'})
+      end
+      message = message .. v.line + 1 .. ': ' .. v.message .. '\n  '
+    end
+    return message
+  end
+  vscode {
+    type = 'test',
+    test = c.id,
+    state = #errors == 0 and 'passed' or 'failed',
+    message = m(),
+    decorations = errors,
+  }
 end
 
 local function main()
