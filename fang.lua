@@ -93,7 +93,7 @@ function Test:runner(reporter, fun, name, id)
 end
 
 function Test:run(reporter, select)
-  if not select or select[self.id] then
+  if not select or select[self.id:tostring()] then
     self:runner(reporter, self.test_fn, self.name, self.id)
   end
 end
@@ -103,8 +103,7 @@ local Suite = class('suite')
 function Suite:case(case_name, fn)
   local db = debug.getinfo(fn)
   self.children[#self.children + 1] = Test {
-    idx = self.idx:added(case_name),
-    id = self.idx:added(case_name):tostring(),
+    id = self.id:added(case_name),
     file = self.file,
     line = db.linedefined - 1,
     name = case_name,
@@ -113,7 +112,7 @@ function Suite:case(case_name, fn)
 end
 
 function Suite:SubSuite(subname, scb)
-  local ss = TestSuite(subname, scb, self.idx)
+  local ss = TestSuite(subname, scb, self.id)
   self.children[#self.children + 1] = ss
   return ss
 end
@@ -122,14 +121,13 @@ Suite.is_suite = true
 function TestSuite(suite_name, cb, parent_id)
   local db = debug.getinfo(cb)
   local f = db.source:sub(2)
-  local idx = (parent_id or ID(f)):added(suite_name)
+  local id = (parent_id or ID(f)):added(suite_name)
   local s = Suite {
-    idx = idx,
-    id = idx:tostring(),
-    children = {},
     name = suite_name,
+    id = id,
     file = f,
     line = db.linedefined - 1,
+    children = {},
   }
   if cb then cb(s) end
   return s
@@ -137,7 +135,7 @@ end
 
 function Suite:run(reporter, select)
   local sel = nil
-  if select and not select[self.id] then sel = select end
+  if select and not select[self.id:tostring()] then sel = select end
   if not sel then reporter.start_suite(self) end
   for i, v in ipairs(self.children) do v:run(reporter, sel) end
   if not sel then reporter.stop_suite(self) end
@@ -178,7 +176,7 @@ local function get_suites(path)
     end)
   end
 
-  local root = Suite {idx = ID('root'), name = 'FangLuaTest', children = {}}
+  local root = Suite {id = ID('root'), name = 'FangLuaTest', children = {}}
   each_lua_test_file(path, function(filepath)
     local xprint = print
     print = function() end
@@ -231,7 +229,7 @@ function VSCodeReporter.list_suite_json(suite)
   function sss(s)
     return {
       type = 'suite',
-      id = s.idx:tostring(),
+      id = s.id:tostring(),
       label = s.name,
       line = s.line,
       file = s.file,
@@ -241,7 +239,7 @@ function VSCodeReporter.list_suite_json(suite)
   function ttt(t)
     return {
       type = 'test',
-      id = t.idx:tostring(),
+      id = t.id:tostring(),
       label = t.name,
       line = t.line,
       file = t.file,
@@ -250,25 +248,25 @@ function VSCodeReporter.list_suite_json(suite)
   json(sss(suite))
 end
 function VSCodeReporter.start_suite(s)
-  json {type = 'suite', suite = s.idx:tostring(), state = 'running'}
+  json {type = 'suite', suite = s.id:tostring(), state = 'running'}
 end
 function VSCodeReporter.stop_suite(s)
-  json {type = 'suite', suite = s.idx:tostring(), state = 'completed'}
+  json {type = 'suite', suite = s.id:tostring(), state = 'completed'}
 end
 function VSCodeReporter.start_case(c)
-  json {type = 'test', test = c.idx:tostring(), state = 'running'}
+  json {type = 'test', test = c.id:tostring(), state = 'running'}
 end
 function VSCodeReporter.stop_case(c, errors)
   local function m()
-    local message = c.name .. ':\n  '
+    local message = {c.name .. ':'}
     for _, v in ipairs(errors) do
-      message = message .. v.line + 1 .. ': ' .. v.message .. '\n  '
+      message[#message + 1] = v.line + 1 .. ': ' .. v.message
     end
-    return message
+    return table.concat(message, '\n  ')
   end
   json {
     type = 'test',
-    test = c.idx:tostring(),
+    test = c.id:tostring(),
     state = #errors == 0 and 'passed' or 'failed',
     message = m(),
     decorations = errors,
