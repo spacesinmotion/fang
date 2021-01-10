@@ -41,35 +41,7 @@ local function json(o, newline)
   end
 end
 
-local function json_object(o, ...)
-  io.write('{')
-  for i, k in ipairs(...) do
-    if o[k] then
-      if i > 1 then io.write(',') end
-      io.write('"' .. k .. '":')
-      if type(o[k]) == 'string' then
-        io.write('"' .. o[k]:gsub('\n', '\\n') .. '"')
-      end
-      if type(o[k]) == 'number' then io.write(tostring(o[k])) end
-      if type(o[k]) == 'table' then
-        io.write('[')
-        local sub = o[k]
-        for j = 1, #sub do
-          if j > 1 then io.write(',') end
-          sub[j]:list_suite_json()
-        end
-        io.write(']')
-      end
-    end
-  end
-  io.write('}')
-end
-
 local Test = class('test')
-
-function Test:list_suite_json()
-  json_object(self, {'type', 'id', 'label', 'line', 'file', 'tooltip'})
-end
 
 function Test:runner(reporter, fun, name, id)
   local current_errors = {}
@@ -136,7 +108,6 @@ function Suite:case(case_name, fn)
     file = self.file,
     line = db.linedefined - 1,
     name = case_name,
-    label = case_name,
     test_fn = fn,
   }
 end
@@ -145,11 +116,6 @@ function Suite:SubSuite(subname, scb)
   local ss = TestSuite(subname, scb, self.idx)
   self.children[#self.children + 1] = ss
   return ss
-end
-
-function Suite:list_suite_json()
-  json_object(self,
-              {'type', 'id', 'label', 'line', 'file', 'tooltip', 'children'})
 end
 Suite.is_suite = true
 
@@ -161,7 +127,6 @@ function TestSuite(suite_name, cb, parent_id)
     idx = idx,
     id = idx:tostring(),
     children = {},
-    label = suite_name,
     name = suite_name,
     file = f,
     line = db.linedefined - 1,
@@ -213,7 +178,7 @@ local function get_suites(path)
     end)
   end
 
-  local root = Suite {id = 'root', label = 'FangLuaTest', children = {}}
+  local root = Suite {idx = ID('root'), name = 'FangLuaTest', children = {}}
   each_lua_test_file(path, function(filepath)
     local xprint = print
     print = function() end
@@ -253,14 +218,45 @@ local function json(o, newline)
 end
 
 local VSCodeReporter = {}
+
+function VSCodeReporter.list_suite_json(suite)
+  local sss, ttt
+  local function all(a)
+    local c = {}
+    for _, v in ipairs(a) do
+      c[#c + 1] = v.type == 'suite' and sss(v) or ttt(v)
+    end
+    return c
+  end
+  function sss(s)
+    return {
+      type = 'suite',
+      id = s.idx:tostring(),
+      label = s.name,
+      line = s.line,
+      file = s.file,
+      children = all(s.children),
+    }
+  end
+  function ttt(t)
+    return {
+      type = 'test',
+      id = t.idx:tostring(),
+      label = t.name,
+      line = t.line,
+      file = t.file,
+    }
+  end
+  json(sss(suite))
+end
 function VSCodeReporter.start_suite(s)
-  json {type = 'suite', suite = s.id, state = 'running'}
+  json {type = 'suite', suite = s.idx:tostring(), state = 'running'}
 end
 function VSCodeReporter.stop_suite(s)
-  json {type = 'suite', suite = s.id, state = 'completed'}
+  json {type = 'suite', suite = s.idx:tostring(), state = 'completed'}
 end
 function VSCodeReporter.start_case(c)
-  json {type = 'test', test = c.id, state = 'running'}
+  json {type = 'test', test = c.idx:tostring(), state = 'running'}
 end
 function VSCodeReporter.stop_case(c, errors)
   local function m()
@@ -272,7 +268,7 @@ function VSCodeReporter.stop_case(c, errors)
   end
   json {
     type = 'test',
-    test = c.id,
+    test = c.idx:tostring(),
     state = #errors == 0 and 'passed' or 'failed',
     message = m(),
     decorations = errors,
@@ -282,7 +278,7 @@ end
 local function main()
   package.path = arg[#arg] .. '/?.lua;' .. package.path
   if arg[1] == 'suite' then
-    get_suites(arg[2]):list_suite_json()
+    VSCodeReporter.list_suite_json(get_suites(arg[2]))
   elseif arg[1] == 'run' then
     local as_set = #arg > 2 and {}
     for i = 3, #arg do as_set[arg[i]] = true end
