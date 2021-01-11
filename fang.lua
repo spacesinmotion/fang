@@ -54,14 +54,14 @@ function Test:runner(reporter, fun, name, id)
       if i == 5 then
         local b = s:find(':', 4) + 1
         local e = s:find(':', b) - 1
-        return tonumber(s:sub(b, e)) + 1
+        return tonumber(s:sub(b, e))
       end
     end
     return 666
   end
 
   local function push_error(line, err)
-    current_errors[#current_errors + 1] = {line = line - 1, message = err}
+    current_errors[#current_errors + 1] = {line = line, message = err}
   end
 
   local function add_error(e) push_error(get_line(), e) end
@@ -88,7 +88,7 @@ function Test:runner(reporter, fun, name, id)
 
   reporter.start_case(self)
   local ok, err = pcall(run_test_call, fun)
-  if not ok and err ~= ASSERT then push_error(0, tostring(err)) end
+  if not ok and err ~= ASSERT then push_error(self.line, tostring(err)) end
   reporter.stop_case(self, current_errors)
 end
 
@@ -105,7 +105,7 @@ function Suite:case(case_name, fn)
   self.children[#self.children + 1] = Test {
     id = self.id:added(case_name),
     file = self.file,
-    line = db.linedefined - 1,
+    line = db.linedefined,
     name = case_name,
     test_fn = fn,
   }
@@ -126,7 +126,7 @@ function TestSuite(suite_name, cb, parent_id)
     name = suite_name,
     id = id,
     file = f,
-    line = db.linedefined - 1,
+    line = db.linedefined,
     children = {},
   }
   if cb then cb(s) end
@@ -260,7 +260,7 @@ function VSCodeReporter.stop_case(c, errors)
   local function m()
     local message = {c.name .. ':'}
     for _, v in ipairs(errors) do
-      message[#message + 1] = v.line + 1 .. ': ' .. v.message
+      message[#message + 1] = v.line .. ': ' .. v.message
     end
     return table.concat(message, '\n  ')
   end

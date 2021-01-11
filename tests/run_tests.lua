@@ -132,7 +132,7 @@ case('Checking a list of all suites', function()
   num_suites, num_cases = count_suites_and_cases(suites)
   assert(num_suites == 5,
          'expected different test suite count then ' .. num_suites)
-  assert(num_cases == 7, 'expected different test case count then ' .. num_cases)
+  assert(num_cases == 8, 'expected different test case count then ' .. num_cases)
 end)
 
 case('Check list no test files defined', function()
@@ -195,7 +195,7 @@ case('Checking running all test', function()
 
   local count = 0
   for _, _ in pairs(failed_tests) do count = count + 1 end
-  assert(count == 2, 'Expect only 2 failed tests, got ' .. count)
+  assert(count == 3, 'Expect only 2 failed tests, got ' .. count)
 
   local f1 =
       failed_tests['tests/examples/factorial_test.lua::factorial_tests::broken::two']
@@ -210,6 +210,13 @@ case('Checking running all test', function()
   assert(f2[1].message == 'not true')
   assert(f2[2].line == 9)
   assert(f2[2].message == 'not true')
+
+  local f3 =
+      failed_tests['tests/examples/factorial_test.lua::factorial_tests::broken::lua_error']
+  assert(f3, 'missing failed test')
+  assert(f3[1].message:find('attempt to call a nil value'),
+         'got "' .. f3[1].message .. '"')
+  assert(f3[1].line == 20, 'failed test got wrong line 20 ' .. f3[1].line)
   -- for k, v in pairs(failed_tests) do
   --   print(k)
   --   for i, e in ipairs(v) do print(i, e.line, e.message) end
@@ -248,7 +255,7 @@ end)
 
 case('Checking running single test suite', function()
   local count = 0
-  local suite = 'tests/examples/factorial_test.lua::factorial_tests::broken'
+  local suite = 'tests/examples/factorial_test.lua::factorial_tests::complex'
   for s in exec_fang({'run', 'tests/examples', suite}):gmatch('[^\r\n]+') do
     -- print(s)
     s = json_decode(s)
@@ -256,7 +263,7 @@ case('Checking running single test suite', function()
            'wrong test run ' .. tostring(s.test))
     count = count + 1
   end
-  assert(count == 4, 'expect 4 messages for this suite')
+  assert(count == 4, 'expect 4 messages for this suite got ' .. count)
 end)
 
 case('Checking running other single test suite...', function()

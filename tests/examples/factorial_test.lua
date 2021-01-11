@@ -17,5 +17,6 @@ return TestSuite('factorial_tests', function(s)
 
   s:SubSuite('broken', function(b)
     b:case('two', function() CHECK(factorial(2) == 42) end)
+    b:case('lua_error', function() CHECK(factorial(2) == undefined_fn()) end)
   end)
 end)
