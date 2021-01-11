@@ -220,6 +220,7 @@ local VSCodeReporter = {}
 function VSCodeReporter.list_suite_json(suite)
   local sss, ttt
   local function all(a)
+    if #a == 0 then return nil end
     local c = {}
     for _, v in ipairs(a) do
       c[#c + 1] = v.type == 'suite' and sss(v) or ttt(v)
