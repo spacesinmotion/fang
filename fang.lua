@@ -180,7 +180,6 @@ local function get_suites(path)
     id = ID('root'),
     name = 'FangLuaTest',
     line = -1,
-    file = '<<root>>',
     children = {},
   }
   each_lua_test_file(path, function(filepath)
@@ -264,19 +263,19 @@ function VSCodeReporter.start_case(c)
   json {type = 'test', test = c.id:tostring(), state = 'running'}
 end
 function VSCodeReporter.stop_case(c, errors)
-  local function m()
-    local message = {c.name .. ':'}
-    for _, v in ipairs(errors) do
-      message[#message + 1] = v.line .. ': ' .. v.message
-    end
-    return table.concat(message, '\n  ')
+  local decorations = {}
+  local message = {c.name .. ':'}
+  for _, v in ipairs(errors) do
+    message[#message + 1] = v.line .. ': ' .. v.message
+    decorations[#decorations + 1] = {line = v.line - 1, message = v.message}
   end
+  message = table.concat(message, '\n  ')
   json {
     type = 'test',
     test = c.id:tostring(),
     state = #errors == 0 and 'passed' or 'failed',
-    message = m(),
-    decorations = errors,
+    message = message,
+    decorations = decorations,
   }
 end
 

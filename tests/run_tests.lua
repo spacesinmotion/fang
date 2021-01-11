@@ -215,15 +215,15 @@ case('Checking running all test', function()
   local f1 =
       failed_tests['tests/examples/factorial_test.lua::factorial_tests::broken::two']
   assert(f1, 'missing failed test')
-  assert(f1[1].line == 19, 'failed test got wrong line 19 ' .. f1[1].line)
+  assert(f1[1].line == 18, 'failed test got wrong line 19 ' .. f1[1].line)
   assert(f1[1].message == 'not true')
 
   local f2 =
       failed_tests['tests/examples/arithmetic_test.lua::arithmetic_test::addition_broken']
   assert(f2, 'missing failed test')
-  assert(f2[1].line == 8)
+  assert(f2[1].line == 7)
   assert(f2[1].message == 'not true')
-  assert(f2[2].line == 9)
+  assert(f2[2].line == 8)
   assert(f2[2].message == 'not true')
 
   local f3 =
@@ -231,7 +231,7 @@ case('Checking running all test', function()
   assert(f3, 'missing failed test')
   assert(f3[1].message:find('attempt to call a nil value'),
          'got "' .. f3[1].message .. '"')
-  assert(f3[1].line == 20, 'failed test got wrong line 20 ' .. f3[1].line)
+  assert(f3[1].line == 19, 'failed test got wrong line 20 ' .. f3[1].line)
   -- for k, v in pairs(failed_tests) do
   --   print(k)
   --   for i, e in ipairs(v) do print(i, e.line, e.message) end
