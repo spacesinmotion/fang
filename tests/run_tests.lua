@@ -133,6 +133,23 @@ case('Checking a list of all suites', function()
   assert(num_suites == 5,
          'expected different test suite count then ' .. num_suites)
   assert(num_cases == 8, 'expected different test case count then ' .. num_cases)
+
+  assert(suites.children[1].type == 'suite')
+  assert(suites.children[1].label == 'arithmetic_test')
+  assert(suites.children[1].line == 0) -- vscode -1
+  assert(suites.children[1].file == 'tests/examples/arithmetic_test.lua')
+
+  assert(suites.children[1].children[1].type == 'test')
+  assert(suites.children[1].children[1].label == 'addition')
+  assert(suites.children[1].children[1].line == 1) -- vscode -1
+  assert(suites.children[1].children[1].file ==
+             'tests/examples/arithmetic_test.lua')
+
+  assert(suites.children[1].children[2].type == 'test')
+  assert(suites.children[1].children[2].label == 'addition_broken')
+  assert(suites.children[1].children[2].line == 6) -- vscode -1
+  assert(suites.children[1].children[2].file ==
+             'tests/examples/arithmetic_test.lua')
 end)
 
 case('Check list no test files defined', function()

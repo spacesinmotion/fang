@@ -176,7 +176,13 @@ local function get_suites(path)
     end)
   end
 
-  local root = Suite {id = ID('root'), name = 'FangLuaTest', children = {}}
+  local root = Suite {
+    id = ID('root'),
+    name = 'FangLuaTest',
+    line = -1,
+    file = '<<root>>',
+    children = {},
+  }
   each_lua_test_file(path, function(filepath)
     local xprint = print
     print = function() end
@@ -232,7 +238,7 @@ function VSCodeReporter.list_suite_json(suite)
       type = 'suite',
       id = s.id:tostring(),
       label = s.name,
-      line = s.line,
+      line = s.line - 1,
       file = s.file,
       children = all(s.children),
     }
@@ -242,7 +248,7 @@ function VSCodeReporter.list_suite_json(suite)
       type = 'test',
       id = t.id:tostring(),
       label = t.name,
-      line = t.line,
+      line = t.line - 1,
       file = t.file,
     }
   end
