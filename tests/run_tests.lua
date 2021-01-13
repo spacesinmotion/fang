@@ -80,8 +80,9 @@ local function exec(cmd)
   return s;
 end
 
-local function exec_fang(args)
-  return exec('lua fang.lua ' .. table.concat(args, ' '))
+local function exec_fang(args, cli)
+  cli = cli and '' or ' --vscode'
+  return exec('lua fang.lua ' .. table.concat(args, ' ') .. cli)
 end
 
 local function tests_suites(s)
@@ -125,7 +126,6 @@ end
 local num_suites, num_cases
 case('Checking a list of all suites', function()
   local suites_json = exec_fang({'suite', 'tests/examples'})
-  -- print(suites_json)
   local suites = json_decode(suites_json)
   tests_suites(suites)
 
@@ -292,4 +292,38 @@ case('Checking running other single test suite...', function()
     count = count + 1
   end
   assert(count == 6, 'expect 4 messages for this suite')
+end)
+
+case('Checking a list of all suites on command line', function()
+  local cli = exec_fang({'suite', 'tests/examples'}, true)
+  -- print(cli)
+  for _, v in ipairs {
+    '"FangLuaTest" {', '"arithmetic_test" {', '"addition"', '"addition_broken"',
+    '"factorial_tests" {', '"one"', '"two"', '"three"', '"complex" {', '"ten"',
+    '"broken" {', '"lua_error"', '}',
+  } do assert(cli:find(v)) end
+end)
+
+case('Checking running single suite with comand line output', function()
+  local case = 'tests/examples/arithmetic_test.lua::arithmetic_test'
+  local out = {}
+  for s in exec_fang({'run', 'tests/examples', case}, true):gmatch('[^\r\n]+') do
+    -- print(s)
+    out[#out + 1] = s;
+  end
+  assert(out[1]:find('--------]'))
+  assert(out[2]:find('SUITE  ]'))
+  assert(out[2]:find('arithmetic_test'))
+  assert(out[3]:find('--------]'))
+  assert(out[4]:find('RUN'))
+  assert(out[4]:find('addition'))
+  assert(out[5]:find('OK'))
+  assert(out[5]:find('addition'))
+  assert(out[6]:find('addition_broken'))
+  assert(out[6]:find('RUN'))
+  assert(out[7]:find('tests/examples/arithmetic_test.lua:'))
+  assert(out[8]:find('tests/examples/arithmetic_test.lua:'))
+  assert(out[9]:find('addition_broken'))
+  assert(out[9]:find('FAILED'))
+  assert(out[10]:find('--------]'))
 end)

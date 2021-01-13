@@ -279,14 +279,76 @@ function VSCodeReporter.stop_case(c, errors)
   }
 end
 
+local CLIReporter = {}
+function CLIReporter.list_suite_json(suite)
+  local sss, ttt
+  local function all(a, i)
+    for _, v in ipairs(a) do
+      if v.type == 'suite' then
+        sss(v, i)
+      else
+        ttt(v, i)
+      end
+    end
+  end
+  function sss(s, i)
+    print(i .. '"' .. s.name .. '" {')
+    all(s.children, i .. ' ')
+    print(i .. '}')
+  end
+  function ttt(t, i) print(i .. '"' .. t.name .. '"') end
+  sss(suite, '')
+end
+function CLIReporter.start_suite(s)
+  print('\27[32m[--------] --------------------------\27[0m')
+  print('\27[32m[ SUITE  ] \27[93m' .. s.name .. '\27[0m')
+  print('\27[32m[--------] --------------------------\27[0m')
+end
+function CLIReporter.stop_suite(s)
+  print('\27[32m[--------] --------------------------\27[0m')
+end
+function CLIReporter.start_case(c)
+  print('\27[32m[ RUN    ] \27[93m' .. c.name .. '\27[0m')
+end
+function CLIReporter.stop_case(c, errors)
+  if #errors == 0 then
+    print('\27[32m[     OK ] \27[93m' .. c.name .. '\27[0m')
+  else
+    local message = {}
+    for _, v in ipairs(errors) do
+      message[#message + 1] = c.file .. ':' .. v.line .. ': ' .. v.message
+    end
+    print(table.concat(message, '\n'))
+    print('\27[31m[ FAILED ] ' .. c.name .. '\27[0m')
+  end
+end
+
+local function parse_args()
+  local filter_count = 0
+  local filter_as_set = {}
+  local parameter = {mode = arg[1], path = arg[2]}
+  for i = 3, #arg do
+    local v = arg[i]
+    if v:sub(1, 2) == '--' then
+      parameter[v:sub(3)] = true
+    else
+      filter_as_set[v] = true
+      filter_count = filter_count + 1
+    end
+  end
+  return parameter, filter_count > 0 and filter_as_set or nil
+end
+
 local function main()
   package.path = arg[#arg] .. '/?.lua;' .. package.path
-  if arg[1] == 'suite' then
-    VSCodeReporter.list_suite_json(get_suites(arg[2]))
-  elseif arg[1] == 'run' then
-    local as_set = #arg > 2 and {}
-    for i = 3, #arg do as_set[arg[i]] = true end
-    get_suites(arg[2]):run(VSCodeReporter, as_set)
+  local parameter, filter = parse_args()
+
+  local reporter = parameter.vscode and VSCodeReporter or CLIReporter
+
+  if parameter.mode == 'suite' then
+    reporter.list_suite_json(get_suites(parameter.path))
+  elseif parameter.mode == 'run' then
+    get_suites(parameter.path):run(reporter, filter)
   end
 end
 
