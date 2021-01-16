@@ -6,6 +6,6 @@ return TestSuite('arithmetic_test', function(s)
 
   s:case('addition_broken', function()
     CHECK(1 + 1 == 4)
-    CHECK(2 + 2 == 2)
+    REQUIRE(2 + 2 == 2)
   end)
 end)

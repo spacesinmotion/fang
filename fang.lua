@@ -60,11 +60,11 @@ function Test:runner(reporter, fun, name, id)
 
   function CHECK(condition)
     if condition then return end
-    add_error('not true')
+    add_error('condition not met \'' .. tostring(condition) .. '\'')
   end
   function REQUIRE(condition)
     if condition then return end
-    add_assert('not true')
+    add_assert('condition not met \'' .. tostring(condition) .. '\'')
   end
 
   local function run_test_call(fun)

@@ -216,15 +216,15 @@ case('Checking running all test', function()
       failed_tests['tests/examples/factorial_test.lua::factorial_tests::broken::two']
   assert(f1, 'missing failed test')
   assert(f1[1].line == 18, 'failed test got wrong line 19 ' .. f1[1].line)
-  assert(f1[1].message == 'not true')
+  assert(f1[1].message == 'condition not met \'false\'')
 
   local f2 =
       failed_tests['tests/examples/arithmetic_test.lua::arithmetic_test::addition_broken']
   assert(f2, 'missing failed test')
   assert(f2[1].line == 7)
-  assert(f2[1].message == 'not true')
+  assert(f2[1].message == 'condition not met \'false\'')
   assert(f2[2].line == 8)
-  assert(f2[2].message == 'not true')
+  assert(f2[2].message == 'condition not met \'false\' STOP', f2[2].message)
 
   local f3 =
       failed_tests['tests/examples/factorial_test.lua::factorial_tests::broken::lua_error']
