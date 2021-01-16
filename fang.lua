@@ -46,29 +46,15 @@ local Test = class('test')
 function Test:runner(reporter, fun, name, id)
   local current_errors = {}
 
-  local function get_line()
-    local text = debug.traceback()
-    local i = 0
-    for s in text:gmatch('[^\r\n]+') do
-      i = i + 1
-      if i == 5 then
-        local b = s:find(':', 4) + 1
-        local e = s:find(':', b) - 1
-        return tonumber(s:sub(b, e))
-      end
-    end
-    return 666
-  end
-
   local function push_error(line, err)
     current_errors[#current_errors + 1] = {line = line, message = err}
   end
 
-  local function add_error(e) push_error(get_line(), e) end
+  local function add_error(e) push_error(debug.getinfo(3).currentline, e) end
 
   local ASSERT = {}
   local function add_assert(e)
-    push_error(get_line(), e .. ' STOP')
+    push_error(debug.getinfo(3).currentline, e .. ' STOP')
     error(ASSERT)
   end
 
