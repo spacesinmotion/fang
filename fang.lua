@@ -45,35 +45,50 @@ local Test = class('test')
 
 function Test:runner(reporter, fun, name, id)
   local current_errors = {}
+  local ASSERT = {}
 
   local function push_error(line, err)
     current_errors[#current_errors + 1] = {line = line, message = err}
   end
 
-  local function add_error(e) push_error(debug.getinfo(3).currentline, e) end
-
-  local ASSERT = {}
-  local function add_assert(e)
-    push_error(debug.getinfo(3).currentline, e .. ' STOP')
-    error(ASSERT)
+  local function add_error(e, a)
+    if e then
+      push_error(debug.getinfo(3).currentline, e)
+      if a then error(ASSERT) end
+    end
   end
 
-  function CHECK(condition)
-    if condition then return end
-    add_error('condition not met \'' .. tostring(condition) .. '\'')
-  end
-  function REQUIRE(condition)
-    if condition then return end
-    add_assert('condition not met \'' .. tostring(condition) .. '\'')
-  end
-
-  local function run_test_call(fun)
-    local _ENV = {}
-    fun()
+  local assert_statements = {
+    [''] = function(condition)
+      return (not condition) and
+                 ('condition not met \'' .. tostring(condition) .. '\'')
+    end,
+    _EQ = function(a, b)
+      return (not (a == b)) and (tostring(a) .. ' ~= ' .. tostring(b))
+    end,
+    _NE = function(a, b)
+      return (not (a ~= b)) and (tostring(a) .. ' == ' .. tostring(b))
+    end,
+    _GT = function(a, b)
+      return (not (a > b)) and (tostring(a) .. ' <= ' .. tostring(b))
+    end,
+    _LT = function(a, b)
+      return (not (a < b)) and (tostring(a) .. ' >= ' .. tostring(b))
+    end,
+    _GE = function(a, b)
+      return (not (a >= b)) and (tostring(a) .. ' < ' .. tostring(b))
+    end,
+    _LE = function(a, b)
+      return (not (a <= b)) and (tostring(a) .. ' > ' .. tostring(b))
+    end,
+  }
+  for k, o in pairs(assert_statements) do
+    _G['CHECK' .. k] = function(...) add_error(o(...)) end
+    _G['REQUIRE' .. k] = function(...) add_error(o(...), true) end
   end
 
   reporter.start_case(self)
-  local ok, err = pcall(run_test_call, fun)
+  local ok, err = pcall(fun)
   if not ok and err ~= ASSERT then push_error(self.line, tostring(err)) end
   reporter.stop_case(self, current_errors)
 end

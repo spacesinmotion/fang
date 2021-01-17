@@ -132,7 +132,8 @@ case('Checking a list of all suites', function()
   num_suites, num_cases = count_suites_and_cases(suites)
   assert(num_suites == 5,
          'expected different test suite count then ' .. num_suites)
-  assert(num_cases == 8, 'expected different test case count then ' .. num_cases)
+  assert(num_cases == 10,
+         'expected different test case count then ' .. num_cases)
 
   assert(suites.children[1].type == 'suite')
   assert(suites.children[1].label == 'arithmetic_test')
@@ -147,7 +148,7 @@ case('Checking a list of all suites', function()
 
   assert(suites.children[1].children[2].type == 'test')
   assert(suites.children[1].children[2].label == 'addition_broken')
-  assert(suites.children[1].children[2].line == 6) -- vscode -1
+  assert(suites.children[1].children[2].line == 7) -- vscode -1
   assert(suites.children[1].children[2].file ==
              'tests/examples/arithmetic_test.lua')
 end)
@@ -210,7 +211,7 @@ case('Checking running all test', function()
 
   local count = 0
   for _, _ in pairs(failed_tests) do count = count + 1 end
-  assert(count == 3, 'Expect only 2 failed tests, got ' .. count)
+  assert(count == 4, 'Expect only 4 failed tests, got ' .. count)
 
   local f1 =
       failed_tests['tests/examples/factorial_test.lua::factorial_tests::broken::two']
@@ -221,10 +222,10 @@ case('Checking running all test', function()
   local f2 =
       failed_tests['tests/examples/arithmetic_test.lua::arithmetic_test::addition_broken']
   assert(f2, 'missing failed test')
-  assert(f2[1].line == 7)
+  assert(f2[1].line == 8)
   assert(f2[1].message == 'condition not met \'false\'')
-  assert(f2[2].line == 8)
-  assert(f2[2].message == 'condition not met \'false\' STOP', f2[2].message)
+  assert(f2[2].line == 9)
+  assert(f2[2].message == 'condition not met \'false\'', f2[2].message)
 
   local f3 =
       failed_tests['tests/examples/factorial_test.lua::factorial_tests::broken::lua_error']
@@ -232,6 +233,24 @@ case('Checking running all test', function()
   assert(f3[1].message:find('attempt to call a nil value'),
          'got "' .. f3[1].message .. '"')
   assert(f3[1].line == 19, 'failed test got wrong line 20 ' .. f3[1].line)
+
+  local f_ok =
+      failed_tests['tests/examples/arithmetic_test.lua::arithmetic_test::assert_options']
+  assert(not f_ok, 'test should not fail ')
+
+  local f4 =
+      failed_tests['tests/examples/arithmetic_test.lua::arithmetic_test::assert_options_broken']
+  assert(f4, 'missing failed test')
+  local start_index = 23
+  for i, lm in ipairs({
+    '2 == 2', '4 ~= 22', '4 <= 4', '4 <= 5', '4 >= 3', '4 >= 4', '4 < 5',
+    '4 > 3',
+  }) do
+    assert(f4[i].line == start_index + i,
+           'wrong line ' .. start_index + i .. ' vs ' .. f4[i].line)
+    assert(f4[i].message == lm,
+           'expect \'' .. lm .. '\' got \'' .. f4[i].message)
+  end
   -- for k, v in pairs(failed_tests) do
   --   print(k)
   --   for i, e in ipairs(v) do print(i, e.line, e.message) end
@@ -291,7 +310,7 @@ case('Checking running other single test suite...', function()
            'wrong test run ' .. tostring(s.test))
     count = count + 1
   end
-  assert(count == 6, 'expect 4 messages for this suite')
+  assert(count == 10, 'expect 10 messages for this suite got ' .. count)
 end)
 
 case('Checking a list of all suites on command line', function()
