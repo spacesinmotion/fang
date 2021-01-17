@@ -341,10 +341,10 @@ local function parse_args()
 end
 
 local function main()
-  package.path = arg[#arg] .. '/?.lua;' .. package.path
   local parameter, filter = parse_args()
 
   local reporter = parameter.vscode and VSCodeReporter or CLIReporter
+  package.path = parameter.path .. '/?.lua;' .. package.path
 
   if parameter.mode == 'suite' then
     reporter.list_suite_json(get_suites(parameter.path))

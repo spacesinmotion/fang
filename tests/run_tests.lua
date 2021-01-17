@@ -130,9 +130,9 @@ case('Checking a list of all suites', function()
   tests_suites(suites)
 
   num_suites, num_cases = count_suites_and_cases(suites)
-  assert(num_suites == 5,
+  assert(num_suites == 6,
          'expected different test suite count then ' .. num_suites)
-  assert(num_cases == 10,
+  assert(num_cases == 12,
          'expected different test case count then ' .. num_cases)
 
   assert(suites.children[1].type == 'suite')
@@ -211,7 +211,7 @@ case('Checking running all test', function()
 
   local count = 0
   for _, _ in pairs(failed_tests) do count = count + 1 end
-  assert(count == 4, 'Expect only 4 failed tests, got ' .. count)
+  assert(count == 5, 'Expect only 5 failed tests, got ' .. count)
 
   local f1 =
       failed_tests['tests/examples/factorial_test.lua::factorial_tests::broken::two']
@@ -237,6 +237,14 @@ case('Checking running all test', function()
   local f_ok =
       failed_tests['tests/examples/arithmetic_test.lua::arithmetic_test::assert_options']
   assert(not f_ok, 'test should not fail ')
+
+  local f_depends =
+      failed_tests['tests/examples/depends_test.lua::depends_test::ok']
+  assert(not f_depends, 'test should not fail')
+
+  local f_depends_fail =
+      failed_tests['tests/examples/depends_test.lua::depends_test::fail']
+  assert(f_depends_fail, 'test should fail')
 
   local f4 =
       failed_tests['tests/examples/arithmetic_test.lua::arithmetic_test::assert_options_broken']
