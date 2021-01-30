@@ -82,7 +82,7 @@ end
 
 local function exec_fang(args, cli)
   cli = cli and '' or ' --vscode'
-  return exec('lua fang.lua ' .. table.concat(args, ' ') .. cli)
+  return exec('lua fang-runner.lua ' .. table.concat(args, ' ') .. cli)
 end
 
 local function tests_suites(s)
