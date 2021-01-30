@@ -1,3 +1,4 @@
+require 'fang'
 local depends = require 'depends'
 
 return TestSuite('depends_test', function(s)

@@ -7,6 +7,7 @@ local function class(n, init)
   return c
 end
 
+---@class ID
 local ID = class('ID', function(r) return {r} end)
 function ID:added(p)
   local r = setmetatable({table.unpack(self)}, ID)
@@ -41,52 +42,146 @@ local function json(o, newline)
   end
 end
 
+---defining a test case 
+---@class Test
+---@field name string name of the test case
+---@field id ID unique id for that test case
+---@field line number line of file, where it is defined
+---@field test_fn function() the test function to be executed
 local Test = class('test')
 
+local current_errors = {}
+local ASSERT = {}
+
+local function push_error(line, err)
+  current_errors[#current_errors + 1] = {line = line, message = err}
+end
+
+---push new error from case
+---@param e string | nil
+---@param a boolean
+local function add_error(e, a)
+  if e then
+    push_error(debug.getinfo(3).currentline, e)
+    if a then error(ASSERT) end
+  end
+end
+
+---A simple condition to be met for the unit
+---@param condition boolean
+function CHECK(condition)
+  add_error((not condition) and
+                ('condition not met \'' .. tostring(condition) .. '\''))
+end
+
+---compare 2 values on equal (==)
+---@param val1 any
+---@param val2 any
+function CHECK_EQ(val1, val2)
+  add_error((not (val1 == val2)) and
+                (tostring(val1) .. ' ~= ' .. tostring(val2)))
+end
+
+---compare 2 values on not equal (~=)
+---@param val1 any
+---@param val2 any
+function CHECK_NE(val1, val2)
+  add_error((not (val1 ~= val2)) and
+                (tostring(val1) .. ' == ' .. tostring(val2)))
+end
+
+---compare 2 values in order greater then (>)
+---@param val1 any
+---@param val2 any
+function CHECK_GT(val1, val2)
+  add_error((not (val1 > val2)) and (tostring(val1) .. ' <= ' .. tostring(val2)))
+end
+
+---compare 2 values in order less then (<)
+---@param val1 any
+---@param val2 any
+function CHECK_LT(val1, val2)
+  add_error((not (val1 < val2)) and (tostring(val1) .. ' >= ' .. tostring(val2)))
+end
+
+---compare 2 values in order greater or equal (>=)
+---@param val1 any
+---@param val2 any
+function CHECK_GE(val1, val2)
+  add_error((not (val1 >= val2)) and (tostring(val1) .. ' < ' .. tostring(val2)))
+end
+
+---compare 2 values in order less or equal (<=)
+---@param val1 any
+---@param val2 any
+function CHECK_LE(val1, val2)
+  add_error((not (val1 <= val2)) and (tostring(val1) .. ' > ' .. tostring(val2)))
+end
+
+---A simple condition to be met for the unit
+---immediately stop
+---@param condition boolean
+function REQUIRE(condition)
+  add_error((not condition) and
+                ('condition not met \'' .. tostring(condition) .. '\''), true)
+end
+
+---compare 2 values on equal (==)
+---immediately stop
+---@param val1 any
+---@param val2 any
+function REQUIRE_EQ(val1, val2)
+  add_error((not (val1 == val2)) and
+                (tostring(val1) .. ' ~= ' .. tostring(val2)), true)
+end
+
+---compare 2 values on not equal (~=)
+---immediately stop
+---@param val1 any
+---@param val2 any
+function REQUIRE_NE(val1, val2)
+  add_error((not (val1 ~= val2)) and
+                (tostring(val1) .. ' == ' .. tostring(val2)), true)
+end
+
+---compare 2 values in order greater then (>)
+---immediately stop
+---@param val1 any
+---@param val2 any
+function REQUIRE_GT(val1, val2)
+  add_error(
+      (not (val1 > val2)) and (tostring(val1) .. ' <= ' .. tostring(val2)), true)
+end
+
+---compare 2 values in order less then (<)
+---immediately stop
+---@param val1 any
+---@param val2 any
+function REQUIRE_LT(val1, val2)
+  add_error(
+      (not (val1 < val2)) and (tostring(val1) .. ' >= ' .. tostring(val2)), true)
+end
+
+---compare 2 values in order greater or equal (>=)
+---immediately stop
+---@param val1 any
+---@param val2 any
+function REQUIRE_GE(val1, val2)
+  add_error(
+      (not (val1 >= val2)) and (tostring(val1) .. ' < ' .. tostring(val2)), true)
+end
+
+---compare 2 values in order less or equal (<=)
+---immediately stop
+---@param val1 any
+---@param val2 any
+function REQUIRE_LE(val1, val2)
+  add_error(
+      (not (val1 <= val2)) and (tostring(val1) .. ' > ' .. tostring(val2)), true)
+end
+
 function Test:runner(reporter, fun, name, id)
-  local current_errors = {}
-  local ASSERT = {}
-
-  local function push_error(line, err)
-    current_errors[#current_errors + 1] = {line = line, message = err}
-  end
-
-  local function add_error(e, a)
-    if e then
-      push_error(debug.getinfo(3).currentline, e)
-      if a then error(ASSERT) end
-    end
-  end
-
-  local assert_statements = {
-    [''] = function(condition)
-      return (not condition) and
-                 ('condition not met \'' .. tostring(condition) .. '\'')
-    end,
-    _EQ = function(a, b)
-      return (not (a == b)) and (tostring(a) .. ' ~= ' .. tostring(b))
-    end,
-    _NE = function(a, b)
-      return (not (a ~= b)) and (tostring(a) .. ' == ' .. tostring(b))
-    end,
-    _GT = function(a, b)
-      return (not (a > b)) and (tostring(a) .. ' <= ' .. tostring(b))
-    end,
-    _LT = function(a, b)
-      return (not (a < b)) and (tostring(a) .. ' >= ' .. tostring(b))
-    end,
-    _GE = function(a, b)
-      return (not (a >= b)) and (tostring(a) .. ' < ' .. tostring(b))
-    end,
-    _LE = function(a, b)
-      return (not (a <= b)) and (tostring(a) .. ' > ' .. tostring(b))
-    end,
-  }
-  for k, o in pairs(assert_statements) do
-    _G['CHECK' .. k] = function(...) add_error(o(...)) end
-    _G['REQUIRE' .. k] = function(...) add_error(o(...), true) end
-  end
-
+  current_errors = {}
   reporter.start_case(self)
   local ok, err = pcall(fun)
   if not ok and err ~= ASSERT then push_error(self.line, tostring(err)) end
@@ -99,8 +194,17 @@ function Test:run(reporter, select)
   end
 end
 
+---Test suite container class
+---@class Suite
+---@field id string unique identifiery
+---@field file string file that defines that suite 
+---@field line number line number in file 
+---@field children table
 local Suite = class('suite')
 
+---define test case to be executed by testing framework
+---@param case_name string name of the test case
+---@param fn fun() callback to be executed
 function Suite:case(case_name, fn)
   local db = debug.getinfo(fn)
   self.children[#self.children + 1] = Test {
@@ -112,6 +216,10 @@ function Suite:case(case_name, fn)
   }
 end
 
+---create a sub suite 
+---@param subname string name of the sub suite
+---@param scb fun(s:Suite) sub suite builder function
+---@return Suite
 function Suite:SubSuite(subname, scb)
   local ss = TestSuite(subname, scb, self.id)
   self.children[#self.children + 1] = ss
@@ -119,6 +227,11 @@ function Suite:SubSuite(subname, scb)
 end
 Suite.is_suite = true
 
+---Define a test suite with a given name an a test builder cb
+---@param suite_name string the name of the suite
+---@param cb fun(s:Suite) test builder function
+---@param parent_id ID (internal)
+---@return Suite
 function TestSuite(suite_name, cb, parent_id)
   local db = debug.getinfo(cb)
   local f = db.source:sub(2)
@@ -353,4 +466,4 @@ local function main()
   end
 end
 
-main()
+if arg[0] == debug.getinfo(1, 'S').source:sub(2) then main() end

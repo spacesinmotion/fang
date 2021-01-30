@@ -1,3 +1,5 @@
+require 'fang'
+
 local function factorial(number)
   if number <= 1 then return number end
   return factorial(number - 1) * number

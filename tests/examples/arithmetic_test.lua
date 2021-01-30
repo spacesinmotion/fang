@@ -1,3 +1,5 @@
+require 'fang'
+
 return TestSuite('arithmetic_test', function(s)
   s:case('addition', function()
     CHECK(1 + 1 == 2)
