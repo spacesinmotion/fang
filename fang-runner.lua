@@ -1,5 +1,5 @@
-local fang = require 'fang'
-
+local status, fang = pcall(require, 'fang.fang')
+if not status then fang = require 'fang' end
 local function get_suites(path)
   local function ends_with(string, ending)
     return ending == '' or string:sub(-#ending) == ending
